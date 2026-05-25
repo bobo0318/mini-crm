@@ -1,0 +1,15 @@
+/* 全局样式
+ * 注意：Ant Design Vue 的 reset.css 已在 main.ts 里 import，
+ * 浏览器默认样式（h1 边距、a 下划线等）已经被重置。
+ * 这里只放项目级别的全局自定义样式。
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+#app {
+  min-height: 100vh;
+}

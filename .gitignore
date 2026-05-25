@@ -1,0 +1,21 @@
+# macOS / OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+*.suo
+*.swp
+
+# Environment variables (敏感！别 commit)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# 防护：万一在根目录或 api/ 误生成 node_modules / dist
+node_modules/
+dist/
