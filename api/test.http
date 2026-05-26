@@ -1,0 +1,79 @@
+# Mini CRM API 测试集合
+# 用法：装 VSCode 扩展 "REST Client"（作者 Huachao Mao），每个请求上方会出现 "Send Request" 按钮，点一下就发请求
+# ### 三个井号是"请求分隔符"，每个请求一段
+# 单个 # 是注释，会被 REST Client 忽略
+
+# 全局变量：基础 URL，下面用 {{baseUrl}} 引用
+# 改成生产环境的域名只需要改这一行
+@baseUrl = http://localhost:3000
+
+# ============================================================
+# D2 - 健康检查
+# ============================================================
+
+### 健康检查（确认后端活着）
+GET {{baseUrl}}/api/health
+
+
+# ============================================================
+# D3 - 鉴权
+# ============================================================
+
+### ① 注册新用户（首次跑 → 200；同邮箱再跑 → 409）
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "admin@test.com",
+  "password": "123456",
+  "name": "管理员"
+}
+
+
+### ② 注册参数校验失败（邮箱格式错 → 400）
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "password": "123456"
+}
+
+
+### ③ 登录（拿 token）
+# @name login   ← 给这个请求起个名字，下面其他请求可以引用它的响应
+#                  这样不用每次手动复制 token，是 REST Client 最香的特性
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@test.com",
+  "password": "123456"
+}
+
+
+### ④ 登录失败 —— 错误密码（→ 401）
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@test.com",
+  "password": "wrong-password"
+}
+
+
+### ⑤ /api/me 不带 token（→ 401 "未登录或 token 格式错误"）
+GET {{baseUrl}}/api/me
+
+
+### ⑥ /api/me 带假 token（→ 401 "token 无效或已过期"，证明签名校验生效）
+GET {{baseUrl}}/api/me
+Authorization: Bearer this-is-a-fake-token
+
+
+### ⑦ /api/me 带真 token（→ 200，返回当前用户信息）
+# 这一行是 REST Client 的杀手锏：
+# {{login.response.body.token}} 自动从上面 ③ 那次登录响应的 body 里取 token 字段
+# 前提：你得先成功跑过 ③ 一次（REST Client 会缓存上次响应）
+GET {{baseUrl}}/api/me
+Authorization: Bearer {{login.response.body.token}}
