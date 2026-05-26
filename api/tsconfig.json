@@ -1,0 +1,39 @@
+{
+  // TypeScript 编译选项
+  "compilerOptions": {
+    // 目标 JS 版本：编译后的 JS 用什么语法
+    // ES2022 = 支持 async/await、Optional Chaining、顶层 await 等现代特性
+    "target": "ES2022",
+
+    // 模块系统：用 ESM（跟 package.json 的 "type": "module" 配套）
+    "module": "ESNext",
+
+    // 模块解析策略：bundler 模式是 TS 5+ 推荐的现代方式
+    // 让 import 路径写起来自然（不强制写 .js 后缀），跟 Vite 风格一致
+    "moduleResolution": "bundler",
+
+    // 严格模式：开启所有类型检查（强烈建议，写 TS 的意义所在）
+    "strict": true,
+
+    // 允许从 CommonJS 模块用 default import 写法（兼容 node_modules 老库）
+    "esModuleInterop": true,
+
+    // 跳过 node_modules 里第三方包的类型检查（加快编译，避免别人包写错连累你）
+    "skipLibCheck": true,
+
+    // 让 import 路径区分大小写（防 macOS 不区分但 Linux 服务器区分导致的部署 bug）
+    "forceConsistentCasingInFileNames": true,
+
+    // 不输出编译产物（我们用 tsx 直接跑 .ts，不需要先编译成 .js）
+    "noEmit": true,
+
+    // 允许 import .json 文件（比如读配置文件用）
+    "resolveJsonModule": true
+  },
+
+  // 哪些文件要被 TS 处理
+  "include": ["src/**/*.ts"],
+
+  // 哪些文件忽略
+  "exclude": ["node_modules"]
+}

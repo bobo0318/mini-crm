@@ -33,7 +33,7 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 ```
 [x] D0 - 项目立项 + PROJECT_PLAN.md + CLAUDE.md
 [x] D1 - 前端脚手架（Vite + Vue 3 + TS）
-[ ] D2 - 后端脚手架（Hono + Drizzle + SQLite）+ 前后端 hello world 打通
+[x] D2 - 后端脚手架（Hono + Drizzle + SQLite）+ 前后端 hello world 打通
 [ ] D3 - 登录鉴权全链路（JWT + 拦截器 + 路由守卫）
 [ ] D4-D5 - 客户管理模块
 [ ] D6 - 联系人 + 跟进记录
@@ -51,6 +51,7 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 - 2026-05-25：项目立项，PROJECT_PLAN.md 写完，等待开始 D1
 - 2026-05-25：GitHub 仓库 https://github.com/bobo0318/mini-crm 创建并首次 push 成功（CLAUDE.md + PROJECT_PLAN.md）
 - 2026-05-25：D1 完成 —— Vite + Vue 3 + TS 前端脚手架；Ant Design Vue / Pinia / Pinia persistedstate / Vue Router 已挂载到 main.ts；建立 views/Home + views/About 双页面 + router/index.ts；验证路由切换 + Ant Design Vue 按钮渲染均正常
+- 2026-05-26：D2 完成 —— 后端 api/ 脚手架（Hono + tsx + ESM）；SQLite + Drizzle 接入，users 表已通过 db:push 建好；后端 /api/health 接口 + CORS；前端 axios 封装（utils/request.ts）+ api/health.ts + Vite proxy；Home.vue 点按钮成功调通 GET /api/health，全链路打通
 
 ---
 
