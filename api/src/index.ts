@@ -1,11 +1,19 @@
 // Hono 后端服务入口
 // 启动一个 HTTP server，监听 3000 端口，处理前端发来的请求
 
+// 副作用导入：执行这一行会自动读取项目根目录下的 .env 文件，
+// 把里面的键值对挂到 process.env 上。必须放在所有用到 process.env 的代码之前。
+import 'dotenv/config'
+
 import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 
 // CORS 中间件：让浏览器允许跨域请求（前端 5173 → 后端 3000）
 import { cors } from 'hono/cors'
+
+// 子路由
+import authRoutes from './routes/auth'
+import meRoutes from './routes/me'
 
 const app = new Hono()
 
@@ -47,6 +55,13 @@ app.get('/api/health', (c) => {
     timestamp: new Date().toISOString(), // 当前时间，证明返回的是实时数据
   })
 })
+
+// 鉴权相关路由：POST /api/auth/register、POST /api/auth/login
+// app.route(前缀, 子路由) 会把子路由里所有路径都套上前缀
+app.route('/api/auth', authRoutes)
+
+// "我是谁" 受保护接口：GET /api/me
+app.route('/api/me', meRoutes)
 
 // =====================================================
 // 启动 HTTP server

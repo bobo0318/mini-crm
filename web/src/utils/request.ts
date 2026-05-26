@@ -4,6 +4,8 @@
 
 import axios from 'axios'
 import { message } from 'ant-design-vue'
+import { useUserStore } from '../stores/user'
+import router from '../router'
 
 // 创建一个 axios 实例
 // 不用全局 axios，是为了项目专属配置（baseURL、拦截器）不污染全局
@@ -28,10 +30,17 @@ const request = axios.create({
 //   - 改造请求（比如统一编码 / 加时间戳）
 request.interceptors.request.use(
   (config) => {
-    // D3 我们会在这里加入：
-    //   const token = useUserStore().token
-    //   if (token) config.headers.Authorization = `Bearer ${token}`
-    // 现在 D2 阶段还没登录，先空着
+    // 注意：useUserStore() 必须在"函数内部"调，不能放在模块顶部
+    // 因为模块顶部代码在 main.ts 注册 pinia 之前就会执行，那时 store 还没准备好
+    const userStore = useUserStore()
+    const token = userStore.token
+
+    // 如果有 token，自动加在请求头里
+    // 写成 Bearer <token> 是 OAuth 2.0 的标准格式
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+
     return config
   },
   (error) => {
@@ -60,20 +69,38 @@ request.interceptors.response.use(
   (error) => {
     const status = error.response?.status
 
-    // 用 Ant Design Vue 的全局消息提示，统一弹错误
+    // 后端约定：所有错误响应统一是 { error: '错误描述' }
+    // 这里抽出来，让各分支都能用
+    const backendMsg = error.response?.data?.error
+
     if (status === 401) {
-      // 未登录或 token 过期
-      // D3 会在这里跳转登录页
-      message.error('未登录或登录已过期')
+      // 未登录 / token 无效 / token 过期 —— 都走这一支
+      // 三件事：
+      //   1. 弹提示（用后端给的具体原因，没给就兜底）
+      //   2. 清空本地登录态（把 Pinia 里的 token 和 user 清掉）
+      //   3. 跳登录页，并把当前 URL 用 query.redirect 记下来，登录后回跳
+      message.error(backendMsg || '未登录或登录已过期')
+
+      const userStore = useUserStore()
+      userStore.logout()
+
+      // 当前 URL（不含域名），登录成功后用来回跳
+      // 但如果当前已经在 /login，不重复加 redirect（防止无限套娃）
+      const currentPath = router.currentRoute.value.fullPath
+      if (router.currentRoute.value.name !== 'Login') {
+        router.push({
+          name: 'Login',
+          query: { redirect: currentPath },
+        })
+      }
     } else if (status === 403) {
       // 已登录但没权限
-      message.error('没有权限访问该资源')
+      message.error(backendMsg || '没有权限访问该资源')
     } else if (status && status >= 500) {
-      // 后端报错
       message.error('服务器错误，请稍后重试')
     } else {
-      // 兜底：用后端返回的错误信息（如果有），否则用 axios 的错误信息
-      message.error(error.response?.data?.message || error.message || '请求失败')
+      // 兜底（包括 400 参数错误、409 邮箱已注册等）
+      message.error(backendMsg || error.message || '请求失败')
     }
 
     // 继续抛出，让业务代码的 catch 还能拿到错误（如果它想做额外处理）
