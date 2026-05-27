@@ -53,6 +53,7 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 - 2026-05-25：D1 完成 —— Vite + Vue 3 + TS 前端脚手架；Ant Design Vue / Pinia / Pinia persistedstate / Vue Router 已挂载到 main.ts；建立 views/Home + views/About 双页面 + router/index.ts；验证路由切换 + Ant Design Vue 按钮渲染均正常
 - 2026-05-26：D2 完成 —— 后端 api/ 脚手架（Hono + tsx + ESM）；SQLite + Drizzle 接入，users 表已通过 db:push 建好；后端 /api/health 接口 + CORS；前端 axios 封装（utils/request.ts）+ api/health.ts + Vite proxy；Home.vue 点按钮成功调通 GET /api/health，全链路打通
 - 2026-05-26：D3 完成 —— 登录鉴权全链路打通。后端：bcryptjs 哈希、JWT 工具（.env 配 SECRET）、`POST /api/auth/register`、`POST /api/auth/login`、JWT 中间件、`GET /api/me`；前端：Pinia user store（token + userInfo 持久化、isInitialized 不持久化用于 F5 验签）、axios 请求拦截器自动注入 token + 响应拦截器统一处理 401 跳登录、登录页 + 工作台占位、路由守卫 `beforeEach` 区分 public / 受保护路由。手动测试 6 个 case（含 localStorage 伪造攻击防御）全部通过
+- 2026-05-27：D4 完成（D4-D5 客户管理模块的前半）—— 后端：customers 表（含 level/stage 枚举字段用 TS 字面量约束、tags JSON 列、owner_id 外键关联 users）+ CRUD 5 个接口（列表分页/搜索、详情、新增、编辑、删除），owner_id 从 JWT 取防伪造。前端：搭 MainLayout（a-layout-sider 侧栏菜单 + 顶栏用户下拉退出登录），路由改成嵌套结构（受保护页全部挂 MainLayout.children），客户列表页 a-table 真表格 + a-input-search 搜索 + 分页 + level/stage/tags 染色 tag。test.http 加了 ⑧~⑳ 共 13 条用例测后端 CRUD，全过。**D5 待做**：新增/编辑弹窗、删除（带二次确认）、Excel 导出。⚠️ 中途踩坑：REST Client 的 `# @name <名字>` 那行后面不能跟任何字符（之前 D3 写的 `# @name login   ← ...` 把 name 解析坏了），已修
 
 ---
 

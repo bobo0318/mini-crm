@@ -14,6 +14,7 @@ import { cors } from 'hono/cors'
 // 子路由
 import authRoutes from './routes/auth'
 import meRoutes from './routes/me'
+import customerRoutes from './routes/customer'
 
 const app = new Hono()
 
@@ -62,6 +63,9 @@ app.route('/api/auth', authRoutes)
 
 // "我是谁" 受保护接口：GET /api/me
 app.route('/api/me', meRoutes)
+
+// 客户管理：GET/POST/PUT/DELETE /api/customers
+app.route('/api/customers', customerRoutes)
 
 // =====================================================
 // 启动 HTTP server

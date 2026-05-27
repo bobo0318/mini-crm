@@ -14,14 +14,16 @@ import { getMe } from '../api/auth'
 // =====================================================
 // 路由表
 // =====================================================
-// 加类型注解 RouteRecordRaw[]，这样 meta 字段有类型提示
+// D4 起改成"嵌套路由"结构：
+//   /login 单独在外面（登录页不需要侧栏）
+//   其他所有页面都是 MainLayout 的子路由 —— 进入这些页面时
+//   会先渲染 MainLayout（侧栏 + 顶栏），里面的 <router-view /> 再渲染对应子页面
+//
+// 子路由的 path 不写前导 '/'，最终完整路径自动拼接：
+//   '' + '/' + 'dashboard'    → /dashboard
+//   '' + '/' + 'customer/list' → /customer/list
 const routes: RouteRecordRaw[] = [
-  {
-    path: '/',
-    // 根路径重定向到工作台
-    // redirect 是字符串就跳路径，是对象可以带 query
-    redirect: '/dashboard',
-  },
+  // 登录页：独立于 Layout，不带侧栏
   {
     path: '/login',
     name: 'Login',
@@ -30,23 +32,37 @@ const routes: RouteRecordRaw[] = [
     // 守卫里靠这个标志放行
     meta: { public: true },
   },
-  {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: () => import('../views/Dashboard.vue'),
-    // 不写 meta.public 就是受保护，需要登录
-  },
 
-  // D1 时建的测试页，保留观察用；都标记为受保护（练手用）
+  // 受保护页面统统挂在 MainLayout 下
   {
-    path: '/home',
-    name: 'Home',
-    component: () => import('../views/Home.vue'),
-  },
-  {
-    path: '/about',
-    name: 'About',
-    component: () => import('../views/About.vue'),
+    path: '/',
+    component: () => import('../layouts/MainLayout.vue'),
+    // 访问 / 时直接跳到 /dashboard（写在 redirect 里，路由守卫会从 /dashboard 那条记录上读 meta）
+    redirect: '/dashboard',
+    children: [
+      {
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: () => import('../views/Dashboard.vue'),
+      },
+      {
+        path: 'customer/list',
+        name: 'CustomerList',
+        component: () => import('../views/customer/CustomerList.vue'),
+      },
+
+      // D1 时建的测试页，保留作为参考
+      {
+        path: 'home',
+        name: 'Home',
+        component: () => import('../views/Home.vue'),
+      },
+      {
+        path: 'about',
+        name: 'About',
+        component: () => import('../views/About.vue'),
+      },
+    ],
   },
 ]
 

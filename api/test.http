@@ -41,8 +41,9 @@ Content-Type: application/json
 
 
 ### ③ 登录（拿 token）
-# @name login   ← 给这个请求起个名字，下面其他请求可以引用它的响应
-#                  这样不用每次手动复制 token，是 REST Client 最香的特性
+# 下一行的 @name 给这个请求起个名字 "login"，后续请求用 {{login.response.body.token}} 引用它响应里的 token
+# 重要：@name 行必须独占一行，名字后面不能跟任何字符（即使是注释），否则名字会被解析成整行内容，{{login.xxx}} 就找不到
+# @name login
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
@@ -77,3 +78,114 @@ Authorization: Bearer this-is-a-fake-token
 # 前提：你得先成功跑过 ③ 一次（REST Client 会缓存上次响应）
 GET {{baseUrl}}/api/me
 Authorization: Bearer {{login.response.body.token}}
+
+
+# ============================================================
+# D4 - 客户管理 CRUD
+# 注意：所有客户接口都要带 token，前置条件是先跑过上面 ③ 拿到 token
+# ============================================================
+
+### ⑧ 新增客户 A（→ 201，返回新增的客户对象，owner_id 自动是当前登录用户）
+POST {{baseUrl}}/api/customers
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "张三",
+  "company": "字节跳动",
+  "level": "A",
+  "industry": "互联网",
+  "source": "官网注册",
+  "stage": "contact",
+  "tags": ["重点客户", "北方区"]
+}
+
+
+### ⑨ 新增客户 B（多塞几条数据，列表才有得分页）
+POST {{baseUrl}}/api/customers
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "李四",
+  "company": "阿里巴巴",
+  "level": "B",
+  "industry": "电商",
+  "stage": "lead"
+}
+
+
+### ⑩ 新增客户 C
+POST {{baseUrl}}/api/customers
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "王五",
+  "company": "腾讯",
+  "level": "C",
+  "industry": "游戏",
+  "source": "展会",
+  "stage": "qualified",
+  "tags": ["华南"]
+}
+
+
+### ⑪ 新增校验失败：name 不能为空（→ 400）
+POST {{baseUrl}}/api/customers
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "company": "没填姓名的客户"
+}
+
+
+### ⑫ 列表（默认 page=1, pageSize=10）→ 200，data 数组里能看到刚才仨
+GET {{baseUrl}}/api/customers
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ⑬ 列表 + 分页（每页 2 条，看第 2 页）
+GET {{baseUrl}}/api/customers?page=2&pageSize=2
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ⑭ 列表 + 搜索（关键字 "阿里"，应该只返回李四）
+GET {{baseUrl}}/api/customers?keyword=阿里
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ⑮ 详情：取 id=1
+GET {{baseUrl}}/api/customers/1
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ⑯ 详情：id 不存在（→ 404）
+GET {{baseUrl}}/api/customers/9999
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ⑰ 详情：id 不是数字（→ 400）
+GET {{baseUrl}}/api/customers/abc
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ⑱ 编辑客户 id=1（部分更新，只改 stage 和 level）
+PUT {{baseUrl}}/api/customers/1
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "stage": "won",
+  "level": "A"
+}
+
+
+### ⑲ 删除客户 id=3（→ 200, { success: true }）
+DELETE {{baseUrl}}/api/customers/3
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ⑳ 不带 token 访问客户接口（→ 401，证明鉴权中间件生效）
+GET {{baseUrl}}/api/customers
