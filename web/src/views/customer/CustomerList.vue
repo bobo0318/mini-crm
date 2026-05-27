@@ -12,9 +12,17 @@
 
 import { onMounted, reactive, ref } from 'vue'
 import type { TablePaginationConfig, TableColumnsType } from 'ant-design-vue'
-import { ReloadOutlined } from '@ant-design/icons-vue'
+import {
+  DownloadOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons-vue'
 
-import { getCustomerList, type Customer } from '../../api/customer'
+import { message } from 'ant-design-vue'
+
+import { deleteCustomer, getCustomerList, type Customer } from '../../api/customer'
+import { exportToExcel } from '../../utils/excel'
+import CustomerFormModal from './CustomerFormModal.vue'
 
 // =====================================================
 // 表格数据 & 加载状态
@@ -62,6 +70,13 @@ const keyword = ref('')
 //   - 显示 ID 列：开发期方便排查，正式产品可能会去掉
 //   - level / stage 列宽固定，否则会被中文长短撑得参差不齐
 //   - createdAt 列尽量给宽点，本地化后字符串挺长的
+// 表格列定义
+//
+// 注意 source（来源）字段：故意不在表格里展示
+// DB / 新增编辑弹窗 / Excel 导出 三处都有，但表格故意省略
+// 这是中后台常见取舍："表格只显示核心字段（用户最常用来过滤/识别的），详情和导出含全字段"
+// 原因：屏幕宽度有限，列太多用户反而看不过来；想看 source 的话点编辑或导出 Excel
+// 后续如果加新字段（如 phone / address），优先级低的也按这个规则只放编辑弹窗 + 导出
 const columns: TableColumnsType = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
   { title: '姓名', dataIndex: 'name', key: 'name', width: 100 },
@@ -71,6 +86,8 @@ const columns: TableColumnsType = [
   { title: '阶段', dataIndex: 'stage', key: 'stage', width: 100 },
   { title: '标签', dataIndex: 'tags', key: 'tags', width: 200 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  // 操作列：fixed: 'right' 让它在表格水平滚动时固定在右侧
+  { title: '操作', key: 'action', width: 120, fixed: 'right' },
 ]
 
 // =====================================================
@@ -153,6 +170,106 @@ function handleRefresh() {
 }
 
 // =====================================================
+// 新增 / 编辑：打开弹窗
+// =====================================================
+// 拿到 CustomerFormModal 实例的 ref，调它暴露的 open 方法
+// InstanceType<typeof CustomerFormModal> 让 TS 知道这个 ref 上能调哪些方法
+const modalRef = ref<InstanceType<typeof CustomerFormModal>>()
+
+function handleCreate() {
+  // 不传参数 → 新增模式
+  modalRef.value?.open()
+}
+
+function handleEdit(record: Customer) {
+  // 传当前行 → 编辑模式（弹窗内会预填数据）
+  modalRef.value?.open(record)
+}
+
+// 弹窗 success 事件：新增或编辑完成，刷新列表
+// 编辑保持当前页；新增跳回第 1 页（按 createdAt 倒序排，新增的会在第 1 页最上面）
+function handleModalSuccess() {
+  fetchList()
+}
+
+// =====================================================
+// 删除
+// =====================================================
+// a-popconfirm 的 @confirm 触发后调这里
+//
+// 边界处理：
+//   如果当前页只剩 1 条且不是第 1 页，删除后该页就空了
+//   把 current 减 1，避免出现"分页器显示在第 2 页但表格是空"的尴尬状态
+async function handleDelete(record: Customer) {
+  await deleteCustomer(record.id)
+  message.success('删除成功')
+
+  if (dataSource.value.length === 1 && (pagination.current || 1) > 1) {
+    pagination.current = (pagination.current || 1) - 1
+  }
+  fetchList()
+}
+
+// =====================================================
+// Excel 导出
+// =====================================================
+// 范围："导出筛选后的全部" —— 带当前搜索关键字，传一个大 pageSize 一次拉完
+//
+// 列定义跟表格显示对齐，但有几个差异：
+//   - 增加 source 列（表格因空间紧没显示，Excel 不缺空间）
+//   - stage / level / tags / createdAt 都做 format 转换
+const exporting = ref(false)
+
+async function handleExport() {
+  exporting.value = true
+  try {
+    // 拉全部（pageSize 给一个很大的数字一次拉完）
+    // 真实业务如果数据量超大（>1w 条），应该分批拉 + 用 stream/web worker 避免卡浏览器
+    // 学习项目这一步先简化
+    const res = await getCustomerList({
+      page: 1,
+      pageSize: 9999,
+      keyword: keyword.value,
+    })
+
+    exportToExcel<Customer>({
+      data: res.data,
+      filename: `客户列表_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      columns: [
+        { key: 'id', title: 'ID' },
+        { key: 'name', title: '姓名' },
+        { key: 'company', title: '公司' },
+        { key: 'level', title: '等级' },
+        { key: 'industry', title: '行业' },
+        { key: 'source', title: '来源' },
+        // 阶段：枚举值翻译成中文
+        {
+          key: 'stage',
+          title: '阶段',
+          format: (val) => stageMap[val as Customer['stage']].label,
+        },
+        // 标签：数组拼成字符串
+        {
+          key: 'tags',
+          title: '标签',
+          format: (val) => ((val as string[] | null) || []).join('、'),
+        },
+        // 创建时间：ISO 字符串 → 本地化格式
+        {
+          key: 'createdAt',
+          title: '创建时间',
+          format: (val) => formatTime(val as string),
+        },
+      ],
+    })
+
+    message.success(`导出成功，共 ${res.data.length} 条`)
+  } finally {
+    exporting.value = false
+  }
+}
+
+// =====================================================
 // 首次进入页面：拉第 1 页
 // =====================================================
 onMounted(fetchList)
@@ -162,9 +279,7 @@ onMounted(fetchList)
   <div>
     <!-- 顶部操作栏 -->
     <div class="toolbar">
-      <!-- a-input-search：输入框 + 搜索按钮的组合控件 -->
-      <!-- @search：点搜索按钮 或 按回车 时触发，回调参数是当前输入值 -->
-      <!-- v-model:value：双向绑定到 keyword（Ant Design Vue 用 :value，不是 v-model="" 简写） -->
+      <!-- 左侧：搜索 -->
       <a-input-search
         v-model:value="keyword"
         placeholder="搜索姓名或公司"
@@ -174,11 +289,21 @@ onMounted(fetchList)
         @search="handleSearch"
       />
 
-      <!-- 刷新按钮：靠右 -->
-      <a-button @click="handleRefresh">
-        <template #icon><ReloadOutlined /></template>
-        刷新
-      </a-button>
+      <!-- 右侧：操作按钮组 -->
+      <a-space>
+        <a-button type="primary" @click="handleCreate">
+          <template #icon><PlusOutlined /></template>
+          新增客户
+        </a-button>
+        <a-button :loading="exporting" @click="handleExport">
+          <template #icon><DownloadOutlined /></template>
+          导出
+        </a-button>
+        <a-button @click="handleRefresh">
+          <template #icon><ReloadOutlined /></template>
+          刷新
+        </a-button>
+      </a-space>
     </div>
 
     <!-- 表格 -->
@@ -225,6 +350,28 @@ onMounted(fetchList)
           {{ formatTime(record.createdAt) }}
         </template>
 
+        <!-- 操作列：编辑 + 删除 -->
+        <template v-else-if="column.key === 'action'">
+          <a-button type="link" size="small" @click="handleEdit(record as Customer)">
+            编辑
+          </a-button>
+
+          <!-- a-popconfirm 包在按钮外层，点按钮不直接删，先弹气泡问 -->
+          <!-- @confirm 是用户点"确定"后才触发 -->
+          <!-- ok-type="danger" 让确定按钮也变红，强化"危险操作"语义 -->
+          <a-popconfirm
+            :title="`确认删除「${(record as Customer).name}」吗？此操作不可恢复`"
+            ok-text="确认删除"
+            cancel-text="取消"
+            ok-type="danger"
+            @confirm="handleDelete(record as Customer)"
+          >
+            <a-button type="link" size="small" danger>
+              删除
+            </a-button>
+          </a-popconfirm>
+        </template>
+
         <!-- 其他列没有 v-else，会走 a-table 默认渲染（直接显示 dataIndex 对应字段） -->
         <!-- 但 company / industry 可能是 null，统一兜底显示 "-" 更友好 -->
         <template v-else-if="['company', 'industry'].includes(column.key as string)">
@@ -232,6 +379,11 @@ onMounted(fetchList)
         </template>
       </template>
     </a-table>
+
+    <!-- 新增/编辑共用弹窗 -->
+    <!-- ref 拿到组件实例，可以调它暴露的 open 方法 -->
+    <!-- @success 事件：弹窗内提交成功后触发，刷新列表 -->
+    <CustomerFormModal ref="modalRef" @success="handleModalSuccess" />
   </div>
 </template>
 

@@ -83,3 +83,50 @@ export async function getCustomerDetail(id: number): Promise<Customer> {
   const res = await request.get<Customer>(`/customers/${id}`)
   return res.data
 }
+
+// =====================================================
+// D5 新增 / 编辑 / 删除
+// =====================================================
+
+// 新增 / 编辑共用的入参
+// 注意没有 id / ownerId / createdAt —— 这些字段后端会自己处理
+// Partial<...> 让所有字段都变可选（编辑接口本来就支持部分更新；新增接口也只要求 name 必填）
+export type CustomerFormData = Partial<{
+  name: string
+  company: string | null
+  level: 'A' | 'B' | 'C' | null
+  industry: string | null
+  source: string | null
+  stage: 'lead' | 'contact' | 'qualified' | 'won' | 'lost'
+  tags: string[] | null
+}>
+
+/**
+ * 新增客户
+ * POST /api/customers
+ */
+export async function createCustomer(data: CustomerFormData): Promise<Customer> {
+  const res = await request.post<Customer>('/customers', data)
+  return res.data
+}
+
+/**
+ * 编辑客户（部分更新）
+ * PUT /api/customers/:id
+ */
+export async function updateCustomer(
+  id: number,
+  data: CustomerFormData,
+): Promise<Customer> {
+  const res = await request.put<Customer>(`/customers/${id}`, data)
+  return res.data
+}
+
+/**
+ * 删除客户
+ * DELETE /api/customers/:id
+ */
+export async function deleteCustomer(id: number): Promise<{ success: boolean }> {
+  const res = await request.delete<{ success: boolean }>(`/customers/${id}`)
+  return res.data
+}
