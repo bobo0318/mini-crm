@@ -11,7 +11,7 @@
 //   onMounted → 拉第 1 页 → 用户改搜索/翻页 → 重新拉 → 渲染
 
 import { onMounted, reactive, ref } from 'vue'
-import type { TablePaginationConfig, TableColumnsType } from 'ant-design-vue'
+import type { TablePaginationConfig } from 'ant-design-vue'
 import {
   DownloadOutlined,
   PlusOutlined,
@@ -22,6 +22,8 @@ import { message } from 'ant-design-vue'
 
 import { deleteCustomer, getCustomerList, type Customer } from '../../api/customer'
 import { exportToExcel } from '../../utils/excel'
+import { formatTime } from '../../utils/format'
+import { columns, levelColorMap, stageMap } from './customer.data'
 import CustomerFormModal from './CustomerFormModal.vue'
 
 // =====================================================
@@ -59,68 +61,6 @@ const pagination = reactive<TablePaginationConfig>({
 // 搜索关键字
 // =====================================================
 const keyword = ref('')
-
-// =====================================================
-// 表格列定义
-// =====================================================
-//
-// TableColumnsType 是 ant-design-vue 给的列类型，让 dataIndex / customRender 有提示
-//
-// 设计取舍：
-//   - 显示 ID 列：开发期方便排查，正式产品可能会去掉
-//   - level / stage 列宽固定，否则会被中文长短撑得参差不齐
-//   - createdAt 列尽量给宽点，本地化后字符串挺长的
-// 表格列定义
-//
-// 注意 source（来源）字段：故意不在表格里展示
-// DB / 新增编辑弹窗 / Excel 导出 三处都有，但表格故意省略
-// 这是中后台常见取舍："表格只显示核心字段（用户最常用来过滤/识别的），详情和导出含全字段"
-// 原因：屏幕宽度有限，列太多用户反而看不过来；想看 source 的话点编辑或导出 Excel
-// 后续如果加新字段（如 phone / address），优先级低的也按这个规则只放编辑弹窗 + 导出
-const columns: TableColumnsType = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '姓名', dataIndex: 'name', key: 'name', width: 100 },
-  { title: '公司', dataIndex: 'company', key: 'company', width: 160 },
-  { title: '等级', dataIndex: 'level', key: 'level', width: 80 },
-  { title: '行业', dataIndex: 'industry', key: 'industry', width: 100 },
-  { title: '阶段', dataIndex: 'stage', key: 'stage', width: 100 },
-  { title: '标签', dataIndex: 'tags', key: 'tags', width: 200 },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  // 操作列：fixed: 'right' 让它在表格水平滚动时固定在右侧
-  { title: '操作', key: 'action', width: 120, fixed: 'right' },
-]
-
-// =====================================================
-// 枚举值 → 中文 + 颜色映射
-// =====================================================
-//
-// stage 五个枚举值翻译成中文标签和对应颜色
-// 颜色用的是 Ant Design 预设颜色名（"blue" / "green" 等），a-tag 接受这些字符串
-const stageMap: Record<Customer['stage'], { label: string; color: string }> = {
-  lead: { label: '线索', color: 'default' },
-  contact: { label: '联系中', color: 'blue' },
-  qualified: { label: '已意向', color: 'purple' },
-  won: { label: '成交', color: 'green' },
-  lost: { label: '流失', color: 'red' },
-}
-
-// level A/B/C 三档对应不同颜色（A 最重要 → 红，B 次 → 橙，C 普通 → 蓝）
-const levelColorMap: Record<NonNullable<Customer['level']>, string> = {
-  A: 'red',
-  B: 'orange',
-  C: 'blue',
-}
-
-// =====================================================
-// 时间格式化
-// =====================================================
-//
-// 后端给 ISO 字符串，直接用 Date 构造再 toLocaleString 转成本地时区
-// 不引入 dayjs/moment 是为了少一个依赖；后面真的需要复杂格式化再装
-function formatTime(iso: string) {
-  if (!iso) return '-'
-  return new Date(iso).toLocaleString('zh-CN', { hour12: false })
-}
 
 // =====================================================
 // 拉数据

@@ -11,13 +11,14 @@
 import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 
-import { BasicForm, type FormSchema } from '../../components/BasicForm'
+import { BasicForm } from '../../components/BasicForm'
 import {
   createCustomer,
   updateCustomer,
   type Customer,
   type CustomerFormData,
 } from '../../api/customer'
+import { formSchemas } from './customer.data'
 
 // =====================================================
 // emits
@@ -56,87 +57,6 @@ const formData = reactive<CustomerFormData>({
   stage: 'lead',
   tags: [],
 })
-
-// 表单 schemas —— 配置驱动，加字段只改这里
-// 每个 schema 描述：字段名、标签、用什么组件、占栅格几列、校验规则等
-const formSchemas: FormSchema[] = [
-  {
-    field: 'name',
-    label: '姓名',
-    component: 'Input',
-    required: true,
-    span: 12,
-    componentProps: { placeholder: '请输入客户姓名', allowClear: true },
-  },
-  {
-    field: 'company',
-    label: '公司',
-    component: 'Input',
-    span: 12,
-    componentProps: { placeholder: '可空（个人客户填不填都行）', allowClear: true },
-  },
-  {
-    field: 'level',
-    label: '等级',
-    component: 'Select',
-    span: 12,
-    componentProps: {
-      placeholder: '请选择等级',
-      allowClear: true,
-      options: [
-        { label: 'A（重点）', value: 'A' },
-        { label: 'B（一般）', value: 'B' },
-        { label: 'C（普通）', value: 'C' },
-      ],
-    },
-  },
-  {
-    field: 'stage',
-    label: '销售阶段',
-    component: 'Select',
-    span: 12,
-    componentProps: {
-      placeholder: '请选择阶段',
-      options: [
-        { label: '线索', value: 'lead' },
-        { label: '联系中', value: 'contact' },
-        { label: '已意向', value: 'qualified' },
-        { label: '成交', value: 'won' },
-        { label: '流失', value: 'lost' },
-      ],
-    },
-  },
-  {
-    field: 'industry',
-    label: '行业',
-    component: 'Input',
-    span: 12,
-    componentProps: { placeholder: '如：互联网、制造业', allowClear: true },
-  },
-  {
-    field: 'source',
-    label: '来源',
-    component: 'Input',
-    span: 12,
-    componentProps: { placeholder: '如：官网注册、展会', allowClear: true },
-  },
-  {
-    field: 'tags',
-    label: '标签',
-    component: 'Select',
-    span: 24,
-    componentProps: {
-      // mode: 'tags' 让 Select 支持任意输入新值（按回车确认）
-      // 跟普通多选不同的是用户可以输入 options 里没有的标签
-      mode: 'tags',
-      placeholder: '输入标签后按回车（可加多个）',
-      // 不给固定 options，让用户自由输入
-      options: [],
-      // 让选中项之间换行（默认会撑出输入框宽度）
-      style: 'width: 100%',
-    },
-  },
-]
 
 // =====================================================
 // 表单 ref：用来调 BasicForm 暴露的 validate / resetFields
