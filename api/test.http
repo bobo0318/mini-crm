@@ -189,3 +189,117 @@ Authorization: Bearer {{login.response.body.token}}
 
 ### ⑳ 不带 token 访问客户接口（→ 401，证明鉴权中间件生效）
 GET {{baseUrl}}/api/customers
+
+
+# ============================================================
+# D6 - 联系人 contacts
+# 注意 URL 风格：列表/新增走嵌套，编辑/删除走扁平
+# 前置：customerId 这个客户在 customers 表里存在；不存在的话先跑 ⑧ 新增
+# ============================================================
+
+# 改这一行就能切换测试的客户 id（比如客户 1 被删了，改成你库里实际存在的 id）
+@customerId = 16
+
+### ㉑ 给客户 1 加联系人 A（→ 201）
+POST {{baseUrl}}/api/customers/{{customerId}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "采购小王",
+  "phone": "13800138001",
+  "email": "wang@example.com",
+  "position": "采购经理",
+  "isPrimary": true
+}
+
+
+### ㉒ 给客户 1 加联系人 B（普通联系人）
+POST {{baseUrl}}/api/customers/{{customerId}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "前台小李",
+  "phone": "13800138002",
+  "position": "前台"
+}
+
+
+### ㉓ 校验失败：name 为空（→ 400）
+POST {{baseUrl}}/api/customers/{{customerId}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "phone": "13800138003"
+}
+
+
+### ㉔ 列出客户 1 的联系人（→ 200，主联系人小王在前）
+GET {{baseUrl}}/api/customers/{{customerId}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ㉕ 列出不存在客户的联系人（→ 404）
+GET {{baseUrl}}/api/customers/9999/contacts
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ㉖ 编辑联系人 1（改 position）
+PUT {{baseUrl}}/api/contacts/1
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "position": "采购总监"
+}
+
+
+### ㉗ 删除联系人 2
+DELETE {{baseUrl}}/api/contacts/2
+Authorization: Bearer {{login.response.body.token}}
+
+
+# ============================================================
+# D6 - 跟进记录 follow_ups
+# 追加 only：只有 GET / POST，没有 PUT/DELETE
+# ============================================================
+
+### ㉘ 给客户 1 加跟进记录（电话）
+POST {{baseUrl}}/api/customers/{{customerId}}/follow-ups
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "type": "call",
+  "content": "## 电话沟通\n\n聊了下他们 Q3 的采购计划，**预算 100W**。\n\n下次约视频详谈。",
+  "nextAt": "2026-06-15T14:00:00.000Z"
+}
+
+
+### ㉙ 给客户 1 加跟进记录（拜访，无下次时间）
+POST {{baseUrl}}/api/customers/{{customerId}}/follow-ups
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "type": "visit",
+  "content": "上门拜访，确认了产品 demo 需求。"
+}
+
+
+### ㉚ 校验失败：type 不在枚举里（→ 400）
+POST {{baseUrl}}/api/customers/{{customerId}}/follow-ups
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "type": "carrier-pigeon",
+  "content": "用信鸽送了张明信片"
+}
+
+
+### ㉛ 列出客户 1 的跟进记录（→ 200，最新的在前）
+GET {{baseUrl}}/api/customers/{{customerId}}/follow-ups
+Authorization: Bearer {{login.response.body.token}}

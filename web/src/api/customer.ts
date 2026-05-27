@@ -4,7 +4,7 @@
 // 本批次（D4）只用到 list / detail，但类型定义放在这统一管理
 // D5 加新增/编辑/删除时只需要往下追加函数
 
-import request from '../utils/request'
+import request from '@/utils/request'
 
 // =====================================================
 // 类型定义

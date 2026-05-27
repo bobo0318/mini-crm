@@ -47,11 +47,13 @@ export interface FormSchema {
 // =====================================================
 // 暴露给父组件的方法
 // =====================================================
-// 父组件通过 ref 拿到 BasicForm 实例后，能调这两个方法
 export interface BasicFormExpose {
   // 触发校验：所有规则通过返回 Promise<true>，失败 Promise.reject
   validate: () => Promise<unknown>
 
   // 重置表单（清空所有字段值 + 清掉校验状态）
   resetFields: () => void
+
+  // 只清掉校验状态（不动字段值）。每次打开弹窗时调一次，避免上次的红字残留
+  clearValidate: () => void
 }

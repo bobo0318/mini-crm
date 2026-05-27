@@ -16,7 +16,7 @@ import {
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 
-import { useUserStore } from '../stores/user'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()

@@ -36,7 +36,7 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 [x] D2 - 后端脚手架（Hono + Drizzle + SQLite）+ 前后端 hello world 打通
 [x] D3 - 登录鉴权全链路（JWT + 拦截器 + 路由守卫）
 [x] D4-D5 - 客户管理模块
-[ ] D6 - 联系人 + 跟进记录
+[x] D6 - 联系人 + 跟进记录
 [ ] D7-D8 - 销售漏斗 Kanban
 [ ] D9 - 权限三级控制
 [ ] D10 - 工作台仪表盘
@@ -55,6 +55,8 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 - 2026-05-26：D3 完成 —— 登录鉴权全链路打通。后端：bcryptjs 哈希、JWT 工具（.env 配 SECRET）、`POST /api/auth/register`、`POST /api/auth/login`、JWT 中间件、`GET /api/me`；前端：Pinia user store（token + userInfo 持久化、isInitialized 不持久化用于 F5 验签）、axios 请求拦截器自动注入 token + 响应拦截器统一处理 401 跳登录、登录页 + 工作台占位、路由守卫 `beforeEach` 区分 public / 受保护路由。手动测试 6 个 case（含 localStorage 伪造攻击防御）全部通过
 - 2026-05-27：D4 完成（D4-D5 客户管理模块的前半）—— 后端：customers 表（含 level/stage 枚举字段用 TS 字面量约束、tags JSON 列、owner_id 外键关联 users）+ CRUD 5 个接口（列表分页/搜索、详情、新增、编辑、删除），owner_id 从 JWT 取防伪造。前端：搭 MainLayout（a-layout-sider 侧栏菜单 + 顶栏用户下拉退出登录），路由改成嵌套结构（受保护页全部挂 MainLayout.children），客户列表页 a-table 真表格 + a-input-search 搜索 + 分页 + level/stage/tags 染色 tag。test.http 加了 ⑧~⑳ 共 13 条用例测后端 CRUD，全过。⚠️ 中途踩坑：REST Client 的 `# @name <名字>` 那行后面不能跟任何字符（之前 D3 写的 `# @name login   ← ...` 把 name 解析坏了），已修
 - 2026-05-27：D5 完成（D4-D5 客户管理模块的后半）—— 抽了 BasicForm 通用表单组件（Schema 驱动，支持 Input/InputNumber/Textarea/Select，暴露 validate/resetFields，[components/BasicForm/](web/src/components/BasicForm/)），核心知识点：v-model 代理模式（computed get/set + emit）、`<component :is>` 动态组件、defineExpose；客户新增/编辑共用 CustomerFormModal（基于 BasicForm），open(record?) 一个方法切换两种模式，标签字段用 Select mode=tags 支持任意输入；删除用 a-popconfirm 二次确认 + 删最后一条自动回上一页；Excel 导出用 xlsx (SheetJS)，抽了通用 `utils/excel.ts`（columns 配置 + format 转换 + 自动列宽），导出范围"筛选后全部"（pageSize=9999 拉一次）。约定取舍：表格故意省略 source 列（中后台常见做法：表格只放核心字段，详情/导出含全字段），代码里加注释说明
+- 2026-05-27：客户模块拆分 refactor —— 客户视图从单文件拆到 customer.data.ts（columns/stageMap/levelColorMap/formSchemas）+ utils/format.ts（formatTime）；引入"单一数据源派生多视图"模式：STAGE_LIST 是源头，stageMap（表格染色）和 STAGE_OPTIONS（Select 用）从同一份派生，加减枚举只改一处
+- 2026-05-27：D6 完成 —— 联系人 + 跟进记录。**后端**：contacts / follow_ups 两张表 + 6 个接口，REST 嵌套资源风格（集合操作走 /customers/:cid/contacts，单体操作走 /contacts/:id），follow_ups 追加 only（只有 GET/POST，无 PUT/DELETE，业务约定 = 接口设计）；user_id / customer_id 从 URL 或 JWT 取，前端不传防伪造。**前端 router 轻拆**：router/ 拆成 index.ts（入口装配）+ routes.ts（路由表）+ guards.ts（守卫），guards 用依赖注入（setupRouterGuards(router)）避免循环 import。**详情页**：/customer/:id，顶部摘要 + 3 Tab（基本信息 / 联系人 / 跟进记录），列表姓名列变链接进详情。**联系人 Tab**：ContactList 设计为"可嵌入组件"（props: customerId），ContactFormModal 复用 BasicForm，主联系人用 a-tag 标"主"。**跟进 Tab**：FollowUpTimeline 用 a-timeline + md-editor-v3 的 MdPreview 渲染 Markdown，FollowUpFormModal 手写 a-form（**有意不复用 BasicForm**——字段少 + Markdown 编辑器特殊，体现"通用组件不是越多越好"的取舍）。**顺手修弹窗 bug**：弹窗校验状态残留导致红字闪烁，给 a-modal 加 :destroy-on-close="true" 彻底解决（CustomerFormModal / ContactFormModal 同步修复），BasicForm 顺便加了 clearValidate 方法。装新依赖：md-editor-v3
 
 ---
 

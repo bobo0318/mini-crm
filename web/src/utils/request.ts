@@ -4,8 +4,8 @@
 
 import axios from 'axios'
 import { message } from 'ant-design-vue'
-import { useUserStore } from '../stores/user'
-import router from '../router'
+import { useUserStore } from '@/stores/user'
+import router from '@/router'
 
 // 创建一个 axios 实例
 // 不用全局 axios，是为了项目专属配置（baseURL、拦截器）不污染全局

@@ -7,8 +7,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { Rule } from 'ant-design-vue/es/form'
 
-import { login } from '../../api/auth'
-import { useUserStore } from '../../stores/user'
+import { login } from '@/api/auth'
+import { useUserStore } from '@/stores/user'
 
 // =====================================================
 // 依赖：router 用来跳转，route 用来读 query.redirect

@@ -10,8 +10,8 @@
 
 import type { TableColumnsType } from 'ant-design-vue'
 
-import type { FormSchema } from '../../components/BasicForm'
-import type { Customer } from '../../api/customer'
+import type { FormSchema } from '@/components/BasicForm'
+import type { Customer } from '@/api/customer'
 
 // =====================================================
 // 单一数据源：销售阶段

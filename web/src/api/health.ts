@@ -1,7 +1,7 @@
 // 健康检查接口
 // 按"业务模块"组织：每类接口一个文件（health / auth / customer / contact ...）
 
-import request from '../utils/request'
+import request from '@/utils/request'
 
 // 后端 /api/health 返回的数据结构
 // 跟 api/src/index.ts 里 c.json({...}) 的字段一一对应

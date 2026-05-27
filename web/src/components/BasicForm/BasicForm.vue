@@ -104,11 +104,16 @@ function getRules(schema: FormSchema): Rule[] {
 // 它自带 validate / resetFields 等方法，我们直接转发即可
 const formRef = ref<FormInstance>()
 
-// defineExpose 让父组件通过 ref 能调这两个方法
+// defineExpose 让父组件通过 ref 能调这几个方法
 // 如果不 expose，<script setup> 里所有东西默认对外不可见（强封装）
+//
+// validate       —— 触发校验
+// resetFields    —— 清字段值 + 清校验状态（"重置整个表单"）
+// clearValidate  —— 只清校验状态，不动字段值（"消掉上次留下的红字"）
 defineExpose({
   validate: () => formRef.value!.validate(),
   resetFields: () => formRef.value!.resetFields(),
+  clearValidate: () => formRef.value?.clearValidate(),
 })
 </script>
 

@@ -1,8 +1,8 @@
 // 鉴权相关接口的封装
 // 对应后端的 /api/auth/* 和 /api/me
 
-import request from '../utils/request'
-import type { UserInfo } from '../stores/user'
+import request from '@/utils/request'
+import type { UserInfo } from '@/stores/user'
 
 // =====================================================
 // 入参 & 返回 类型定义

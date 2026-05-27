@@ -11,13 +11,13 @@
 import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 
-import { BasicForm } from '../../components/BasicForm'
+import { BasicForm } from '@/components/BasicForm'
 import {
   createCustomer,
   updateCustomer,
   type Customer,
   type CustomerFormData,
-} from '../../api/customer'
+} from '@/api/customer'
 import { formSchemas } from './customer.data'
 
 // =====================================================
@@ -144,11 +144,14 @@ function handleCancel() {
   <!-- v-model:open 是 Ant Design Vue 4 的标准写法（老版本是 v-model:visible） -->
   <!-- :confirm-loading 让 OK 按钮在提交时变 loading 状态 + 禁用 -->
   <!-- :mask-closable="false" 防止用户误点遮罩关掉弹窗丢失输入 -->
+  <!-- :destroy-on-close="true" 关闭时销毁内部 BasicForm，下次打开是全新表单， -->
+  <!-- 彻底避免上次校验状态/红字残留 -->
   <a-modal
     v-model:open="open"
     :title="title"
     :confirm-loading="submitting"
     :mask-closable="false"
+    :destroy-on-close="true"
     width="720px"
     ok-text="保存"
     cancel-text="取消"

@@ -11,6 +11,7 @@
 //   onMounted → 拉第 1 页 → 用户改搜索/翻页 → 重新拉 → 渲染
 
 import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import type { TablePaginationConfig } from 'ant-design-vue'
 import {
   DownloadOutlined,
@@ -20,11 +21,18 @@ import {
 
 import { message } from 'ant-design-vue'
 
-import { deleteCustomer, getCustomerList, type Customer } from '../../api/customer'
-import { exportToExcel } from '../../utils/excel'
-import { formatTime } from '../../utils/format'
+import { deleteCustomer, getCustomerList, type Customer } from '@/api/customer'
+import { exportToExcel } from '@/utils/excel'
+import { formatTime } from '@/utils/format'
 import { columns, levelColorMap, stageMap } from './customer.data'
 import CustomerFormModal from './CustomerFormModal.vue'
+
+const router = useRouter()
+
+// 点姓名链接 → 进详情页
+function goDetail(record: Customer) {
+  router.push(`/customer/${record.id}`)
+}
 
 // =====================================================
 // 表格数据 & 加载状态
@@ -262,8 +270,15 @@ onMounted(fetchList)
       <!-- a-table 的 #bodyCell 具名插槽：每渲染一行的每一列都触发一次 -->
       <!-- column 是当前列定义，record 是当前行数据 -->
       <template #bodyCell="{ column, record }">
+        <!-- 姓名列：点击进详情页 -->
+        <template v-if="column.key === 'name'">
+          <a-button type="link" size="small" @click="goDetail(record as Customer)">
+            {{ (record as Customer).name }}
+          </a-button>
+        </template>
+
         <!-- level 列：用带颜色的 a-tag 显示 A/B/C -->
-        <template v-if="column.key === 'level'">
+        <template v-else-if="column.key === 'level'">
           <a-tag v-if="record.level" :color="levelColorMap[record.level as 'A' | 'B' | 'C']">
             {{ record.level }}
           </a-tag>

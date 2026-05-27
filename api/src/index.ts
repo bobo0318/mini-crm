@@ -15,6 +15,8 @@ import { cors } from 'hono/cors'
 import authRoutes from './routes/auth'
 import meRoutes from './routes/me'
 import customerRoutes from './routes/customer'
+import contactRoutes from './routes/contact'
+import followUpRoutes from './routes/followUp'
 
 const app = new Hono()
 
@@ -66,6 +68,16 @@ app.route('/api/me', meRoutes)
 
 // 客户管理：GET/POST/PUT/DELETE /api/customers
 app.route('/api/customers', customerRoutes)
+
+// 联系人路由：包含混合 URL 风格
+//   /api/customers/:cid/contacts   (列表/新增，嵌套)
+//   /api/contacts/:id              (编辑/删除，扁平)
+// 子路由内部已经写了完整路径，所以这里前缀只到 /api
+app.route('/api', contactRoutes)
+
+// 跟进记录路由：/api/customers/:cid/follow-ups
+// 同上，前缀只到 /api
+app.route('/api', followUpRoutes)
 
 // =====================================================
 // 启动 HTTP server

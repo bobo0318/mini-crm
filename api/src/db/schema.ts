@@ -78,3 +78,81 @@ export const customers = sqliteTable('customers', {
     .notNull()
     .$defaultFn(() => new Date()),
 })
+
+// =====================================================
+// 定义 contacts 表（联系人表）
+// =====================================================
+// 业务含义：一个客户可以有多个联系人（销售对接窗口/采购/老板等）
+// 主从表设计：customer_id 是外键，多个联系人挂同一个客户
+export const contacts = sqliteTable('contacts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+
+  // 关联到哪个客户（必填，外键）
+  // .references(() => customers.id) 让数据库保证 customer_id 必须对应真实客户
+  customerId: integer('customer_id')
+    .notNull()
+    .references(() => customers.id),
+
+  // 联系人姓名，必填
+  name: text('name').notNull(),
+
+  // 电话，可空（不是所有联系人都会留电话）
+  phone: text('phone'),
+
+  // 邮箱，可空
+  email: text('email'),
+
+  // 职位，比如 "采购经理"、"CEO"
+  position: text('position'),
+
+  // 是否主联系人
+  // mode: 'boolean' 让 Drizzle 自动把 SQLite 的 0/1 当成 boolean
+  // 默认 false：新增的联系人都不是主，主联系人要手动勾
+  // 注意：业务上"一个客户最多一个主联系人"这个约束 D6 不强制做，
+  //      简化为"前端 UI 提醒，后端只管存"，后续优化时再加复杂逻辑
+  isPrimary: integer('is_primary', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+})
+
+// =====================================================
+// 定义 follow_ups 表（跟进记录表）
+// =====================================================
+// 业务含义：销售跟客户聊了什么、何时再跟、内容是什么（Markdown）
+// 重要约定：跟进记录"追加 only"——一旦插入就不能改也不能删，作为审计痕迹
+//          所以后端只提供 GET（列表）和 POST（新增）两个接口，没有 PUT/DELETE
+export const followUps = sqliteTable('follow_ups', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+
+  // 关联客户
+  customerId: integer('customer_id')
+    .notNull()
+    .references(() => customers.id),
+
+  // 关联跟进人（哪个 user 做的这次跟进）
+  // 从 JWT 自动取，前端不传，防止伪造
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+
+  // 跟进方式：电话 / 拜访 / 邮件 / 微信
+  // TS 字面量约束（运行时由 zod 做校验）
+  type: text('type')
+    .$type<'call' | 'visit' | 'email' | 'wechat'>()
+    .notNull(),
+
+  // 跟进内容，Markdown 文本
+  // 不限长度（SQLite 的 TEXT 无上限），但前端会限制实际字符数
+  content: text('content').notNull(),
+
+  // 下次跟进时间（可空——不是每次跟进都要约下一次）
+  nextAt: integer('next_at', { mode: 'timestamp' }),
+
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+})

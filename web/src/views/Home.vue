@@ -4,7 +4,7 @@ import { ref } from 'vue'
 
 // 引入我们刚封装的健康检查 API 函数 + 它的返回类型
 // 注意：type HealthResponse 这种写法叫"仅类型导入"，编译后不会进 bundle
-import { getHealth, type HealthResponse } from '../api/health'
+import { getHealth, type HealthResponse } from '@/api/health'
 
 // =====================================================
 // 响应式状态（Composition API 的核心）

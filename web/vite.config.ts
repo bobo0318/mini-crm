@@ -1,9 +1,20 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
+
+  // 路径别名：让 @/xxx 解析到 src/xxx
+  // 配完之后写 import { foo } from '@/utils/format'
+  // 比 ../../../utils/format 易读，且文件移动时不需要改 import 路径
+  // 注意：仅配 Vite 不够，TS 也要在 tsconfig.app.json 里加 paths 才能让 IDE 跳转和类型检查跟上
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
 
   // 开发服务器配置
   server: {

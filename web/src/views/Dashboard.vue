@@ -2,7 +2,7 @@
 // 工作台占位页
 // D4 起这个页面是 MainLayout 的子路由：顶部 / 侧栏 / 退出按钮都由 Layout 提供
 // 这里只关心"工作台自己的内容"——D10 会换成正式的 ECharts 仪表盘
-import { useUserStore } from '../stores/user'
+import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
 </script>
