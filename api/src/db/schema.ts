@@ -3,7 +3,8 @@
 
 // 从 sqlite-core 引入列类型和表工厂函数
 // 注意：用 mysql-core 还是 pg-core 取决于你用什么数据库（换库时改这一行）
-import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core'
+// real = SQLite 的浮点数类型，用来存金额（amount）
+import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core'
 
 // 定义 users 表
 // sqliteTable(表名, { 列名: 列定义 })
@@ -151,6 +152,58 @@ export const followUps = sqliteTable('follow_ups', {
 
   // 下次跟进时间（可空——不是每次跟进都要约下一次）
   nextAt: integer('next_at', { mode: 'timestamp' }),
+
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+})
+
+// =====================================================
+// 定义 deals 表（销售商机表）
+// =====================================================
+// 业务含义：一条 deal = 一个潜在的成交机会（D7-D8 销售漏斗看板的核心数据）
+// 一个客户可以有多条 deal（一个客户对你有不同的项目/订单），所以 customer_id 是外键
+//
+// stage 状态机：
+//   lead    → contact → quote → won   （看板 4 列，可拖拽改阶段）
+//   任意阶段 → lost                     （"标记丢失"按钮，标记后从看板隐藏）
+// 这就是 D7 决策里的"丢失走隐藏不开第 5 列"——保持看板视觉聚焦
+export const deals = sqliteTable('deals', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+
+  // 关联到哪个客户（必填，外键）
+  customerId: integer('customer_id')
+    .notNull()
+    .references(() => customers.id),
+
+  // 商机标题，比如 "ERP 系统采购"、"年度服务续约"
+  title: text('title').notNull(),
+
+  // 预估金额：real = SQLite 的浮点数
+  // 可空：一开始不一定能估出金额
+  // ⚠️ 真实金融系统不要用浮点（0.1 + 0.2 ≠ 0.3），要用 integer 存"分"
+  //    这里是学习项目，简化处理
+  amount: real('amount'),
+
+  // 销售阶段：5 个枚举
+  // 默认 'lead'：新建的商机都从"线索"开始
+  stage: text('stage')
+    .$type<'lead' | 'contact' | 'quote' | 'won' | 'lost'>()
+    .notNull()
+    .default('lead'),
+
+  // 成交概率，0-100 的整数
+  // 用途：D10 仪表盘做"加权预期成交金额"= amount × probability / 100
+  // 可空：销售可以不填
+  probability: integer('probability'),
+
+  // 预计成交日期，可空
+  expectedCloseAt: integer('expected_close_at', { mode: 'timestamp' }),
+
+  // 销售归属人：从 JWT 取，前端不传防伪造（跟 customers.ownerId 同款套路）
+  ownerId: integer('owner_id')
+    .notNull()
+    .references(() => users.id),
 
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()

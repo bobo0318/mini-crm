@@ -37,7 +37,7 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 [x] D3 - 登录鉴权全链路（JWT + 拦截器 + 路由守卫）
 [x] D4-D5 - 客户管理模块
 [x] D6 - 联系人 + 跟进记录
-[ ] D7-D8 - 销售漏斗 Kanban
+[x] D7-D8 - 销售漏斗 Kanban
 [ ] D9 - 权限三级控制
 [ ] D10 - 工作台仪表盘
 [ ] D11 - i18n + 暗黑模式
@@ -57,6 +57,7 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 - 2026-05-27：D5 完成（D4-D5 客户管理模块的后半）—— 抽了 BasicForm 通用表单组件（Schema 驱动，支持 Input/InputNumber/Textarea/Select，暴露 validate/resetFields，[components/BasicForm/](web/src/components/BasicForm/)），核心知识点：v-model 代理模式（computed get/set + emit）、`<component :is>` 动态组件、defineExpose；客户新增/编辑共用 CustomerFormModal（基于 BasicForm），open(record?) 一个方法切换两种模式，标签字段用 Select mode=tags 支持任意输入；删除用 a-popconfirm 二次确认 + 删最后一条自动回上一页；Excel 导出用 xlsx (SheetJS)，抽了通用 `utils/excel.ts`（columns 配置 + format 转换 + 自动列宽），导出范围"筛选后全部"（pageSize=9999 拉一次）。约定取舍：表格故意省略 source 列（中后台常见做法：表格只放核心字段，详情/导出含全字段），代码里加注释说明
 - 2026-05-27：客户模块拆分 refactor —— 客户视图从单文件拆到 customer.data.ts（columns/stageMap/levelColorMap/formSchemas）+ utils/format.ts（formatTime）；引入"单一数据源派生多视图"模式：STAGE_LIST 是源头，stageMap（表格染色）和 STAGE_OPTIONS（Select 用）从同一份派生，加减枚举只改一处
 - 2026-05-27：D6 完成 —— 联系人 + 跟进记录。**后端**：contacts / follow_ups 两张表 + 6 个接口，REST 嵌套资源风格（集合操作走 /customers/:cid/contacts，单体操作走 /contacts/:id），follow_ups 追加 only（只有 GET/POST，无 PUT/DELETE，业务约定 = 接口设计）；user_id / customer_id 从 URL 或 JWT 取，前端不传防伪造。**前端 router 轻拆**：router/ 拆成 index.ts（入口装配）+ routes.ts（路由表）+ guards.ts（守卫），guards 用依赖注入（setupRouterGuards(router)）避免循环 import。**详情页**：/customer/:id，顶部摘要 + 3 Tab（基本信息 / 联系人 / 跟进记录），列表姓名列变链接进详情。**联系人 Tab**：ContactList 设计为"可嵌入组件"（props: customerId），ContactFormModal 复用 BasicForm，主联系人用 a-tag 标"主"。**跟进 Tab**：FollowUpTimeline 用 a-timeline + md-editor-v3 的 MdPreview 渲染 Markdown，FollowUpFormModal 手写 a-form（**有意不复用 BasicForm**——字段少 + Markdown 编辑器特殊，体现"通用组件不是越多越好"的取舍）。**顺手修弹窗 bug**：弹窗校验状态残留导致红字闪烁，给 a-modal 加 :destroy-on-close="true" 彻底解决（CustomerFormModal / ContactFormModal 同步修复），BasicForm 顺便加了 clearValidate 方法。装新依赖：md-editor-v3
+- 2026-05-29：D7-D8 完成 —— 销售漏斗看板。**后端**：deals 表（stage 5 枚举 lead/contact/quote/won/lost，amount 用 real，probability 0-100 给 D10 仪表盘加权金额用）+ CRUD 5 接口；列表不分页（看板要一次看完才能拖）+ 默认排除 lost（看板视图）；zod schema 可空字段用 `.nullish()`（同时接受 undefined 和 null —— 之前 `.optional()` 拒 null 导致前端编辑预填 null 字段保存失败）。**前端看板架构**：先 D7 用 dealList 平铺 + computed 分组做静态骨架，D8 改 boardGroups reactive 对象（vuedraggable 要 v-model 可写数组，computed 派生不行）。**vuedraggable@next 拖拽**：4 列同 group="deal" 跨列拖，@change 只处理 added 分支；⭐ **乐观更新 + 失败回滚**：拖完瞬间本地改 deal.stage、再调接口，失败时回滚字段值 + 把卡片从目标列 splice 出来 push 回源列。**DealFormModal**：复用 BasicForm，formSchemas 写成工厂函数 `getFormSchemas(customers)` 让 customerId Select 的 options 动态来自客户列表（首次打开拉一次客户列表缓存到外层 ref，后续打开复用）。**标记丢失**：卡片右上角 × 按钮 hover 显示 + a-popconfirm 二次确认；为防按钮区域被识别成拖拽柄，draggable 加 `filter=".no-drag"` + `prevent-on-filter="false"`，按钮加 class="no-drag" + `@click.stop`（防冒泡触发卡片整体的 handleEdit）。"丢失"不开第 5 列（视觉聚焦），标记后从看板 splice 掉同时 push 到 boardGroups.lost 桶保留数据完整。**装新依赖**：vuedraggable@next（v4，Vue 3 兼容；原版 v2 只支持 Vue 2）。⚠️ 中途踩坑 2 个：(1) vuedraggable 的 `#item` 插槽要求只有一个根节点，**HTML 注释也算节点**，加注释会报 "Item slot must have only one child"，注释只能放在 `<template>` 外或 div 内部；(2) zod `.optional()` 不接受 null（前端编辑时预填的 null 会被拒），改 `.nullish()`
 
 ---
 

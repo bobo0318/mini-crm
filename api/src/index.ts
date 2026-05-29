@@ -17,6 +17,7 @@ import meRoutes from './routes/me'
 import customerRoutes from './routes/customer'
 import contactRoutes from './routes/contact'
 import followUpRoutes from './routes/followUp'
+import dealRoutes from './routes/deal'
 
 const app = new Hono()
 
@@ -78,6 +79,9 @@ app.route('/api', contactRoutes)
 // 跟进记录路由：/api/customers/:cid/follow-ups
 // 同上，前缀只到 /api
 app.route('/api', followUpRoutes)
+
+// 销售商机：GET/POST/PUT/DELETE /api/deals
+app.route('/api/deals', dealRoutes)
 
 // =====================================================
 // 启动 HTTP server

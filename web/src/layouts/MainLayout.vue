@@ -12,6 +12,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   DashboardOutlined,
   TeamOutlined,
+  FundOutlined,
   LogoutOutlined,
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
@@ -32,6 +33,7 @@ const userStore = useUserStore()
 const menuItems = [
   { key: '/dashboard', label: '工作台', icon: DashboardOutlined },
   { key: '/customer/list', label: '客户管理', icon: TeamOutlined },
+  { key: '/deal/board', label: '销售漏斗', icon: FundOutlined },
 ]
 
 // =====================================================

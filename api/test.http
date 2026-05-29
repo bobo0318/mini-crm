@@ -303,3 +303,110 @@ Content-Type: application/json
 ### ㉛ 列出客户 1 的跟进记录（→ 200，最新的在前）
 GET {{baseUrl}}/api/customers/{{customerId}}/follow-ups
 Authorization: Bearer {{login.response.body.token}}
+
+
+# ============================================================
+# D7 - 销售商机 deals（销售漏斗看板的数据源）
+# 接口全是扁平 URL：/api/deals 和 /api/deals/:id
+# 前置：customerId 在 customers 表里存在；用上面 @customerId 这个变量
+# ============================================================
+
+### ㉜ 新增商机 A（最少字段，stage 走默认 'lead'）
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{customerId}},
+  "title": "ERP 系统采购"
+}
+
+
+### ㉝ 新增商机 B（完整字段，stage='contact'）
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{customerId}},
+  "title": "年度技术服务续约",
+  "amount": 800000,
+  "stage": "contact",
+  "probability": 60,
+  "expectedCloseAt": "2026-09-30T00:00:00.000Z"
+}
+
+
+### ㉞ 新增商机 C（报价阶段）
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{customerId}},
+  "title": "CRM 二期开发",
+  "amount": 1200000,
+  "stage": "quote",
+  "probability": 80
+}
+
+
+### ㉟ 校验失败：title 为空（→ 400）
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{customerId}},
+  "title": ""
+}
+
+
+### ㊱ 列表（默认排除 lost）→ 200，看到上面 3 条
+GET {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ㊲ 列表筛 stage=lead（应该只看到 ㉜ 那条）
+GET {{baseUrl}}/api/deals?stage=lead
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ㊳ 详情：取 id=1（不存在就改成实际 id）
+GET {{baseUrl}}/api/deals/1
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ㊴ 拖拽看板模拟：id=1 从 lead 拖到 quote（PUT 只传 stage 一个字段）
+PUT {{baseUrl}}/api/deals/1
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "stage": "quote"
+}
+
+
+### ㊵ 标记丢失：id=2 改 stage='lost'（业务上点"标记丢失"按钮就是发这个请求）
+PUT {{baseUrl}}/api/deals/2
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "stage": "lost"
+}
+
+
+### ㊶ 再列一次（确认 id=2 不在默认列表里 → 证明 lost 被隐藏）
+GET {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ㊷ 单查 lost：?stage=lost（应该能看到 id=2）
+GET {{baseUrl}}/api/deals?stage=lost
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ㊸ 删除商机 id=3
+DELETE {{baseUrl}}/api/deals/3
+Authorization: Bearer {{login.response.body.token}}

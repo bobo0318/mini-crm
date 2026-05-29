@@ -7,6 +7,7 @@
 //     /dashboard                 工作台
 //     /customer/list             客户列表
 //     /customer/:id              客户详情（D6 新增）
+//     /deal/board                销售漏斗看板（D7 新增）
 //     /home /about               D1 测试页
 
 import type { RouteRecordRaw } from 'vue-router'
@@ -45,6 +46,14 @@ export const routes: RouteRecordRaw[] = [
         // props: true 让 :id 自动作为 props 传给组件，比 useRoute().params.id 更解耦
         // 但本项目我们用 useRoute() 也行；这里选 props: true 让组件签名更明确
         props: true,
+      },
+
+      // 销售漏斗看板（D7 新增）
+      // 路径用 /deal/board，未来如果加列表页可以 /deal/list，共享 /deal 命名空间
+      {
+        path: 'deal/board',
+        name: 'DealBoard',
+        component: () => import('../views/deal/DealBoard.vue'),
       },
 
       // D1 时建的测试页
