@@ -26,6 +26,9 @@ import App from './App.vue'
 // ⑦ 自定义指令（D9）
 import { vAuth } from './directives/auth'
 
+// ⑧ i18n（D11）
+import { i18n } from './locales'
+
 // =====================================================
 // 创建 Vue 应用实例
 // =====================================================
@@ -43,6 +46,7 @@ pinia.use(piniaPluginPersistedstate)
 // =====================================================
 app
   .use(pinia)   // 注册 Pinia，从此所有组件能用 useXxxStore()
+  .use(i18n)    // 注册 vue-i18n，模板里 $t('key') / 组件里 useI18n() 都能用（D11）
   .use(router)  // 注册 Vue Router，从此 <router-view> 和 <router-link> 生效
   .use(Antd)    // 注册 Ant Design Vue，从此 <a-button> 等组件全局可用
   .directive('auth', vAuth)  // 注册 v-auth 自定义指令（D9 按钮级权限）

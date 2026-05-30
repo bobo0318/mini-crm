@@ -8,8 +8,9 @@
 // Markdown 渲染用 md-editor-v3 的 MdPreview 组件（只读模式）
 // 这样跟编辑器的样式风格统一，不用单独引一个 marked
 
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
+import { theme as antTheme } from 'ant-design-vue'
 
 // MdPreview 是 md-editor-v3 提供的"只读渲染器"
 // 跟编辑器（MdEditor）相对，专门用来展示
@@ -19,9 +20,17 @@ import 'md-editor-v3/lib/style.css'
 import { getFollowUpList, type FollowUp } from '@/api/followUp'
 import { typeMap } from './followUp.data'
 import { formatTime } from '@/utils/format'
+import { useSettingsStore } from '@/stores/settings'
 import FollowUpFormModal from './FollowUpFormModal.vue'
 
 const props = defineProps<{ customerId: number }>()
+
+// D11：暗黑模式适配
+// 1. .content 灰底背景绑 token（亮 #fafafa / 暗深灰）
+// 2. MdPreview 自己也有主题（light/dark），直接传 settings.theme
+const settings = useSettingsStore()
+const { token } = antTheme.useToken()
+const mdTheme = computed(() => settings.theme)
 
 const loading = ref(false)
 const dataSource = ref<FollowUp[]>([])
@@ -83,9 +92,9 @@ function handleModalSuccess() {
 
           <!-- Markdown 内容渲染 -->
           <!-- MdPreview 是只读组件，传 modelValue 渲染对应 markdown -->
-          <!-- preview-only 也可以用 :preview-only="true"，这里直接默认行为 -->
-          <div class="content">
-            <MdPreview :model-value="item.content" />
+          <!-- D11：背景绑 token、:theme 让 md-editor 自己也切换亮暗主题 -->
+          <div class="content" :style="{ background: token.colorFillTertiary }">
+            <MdPreview :model-value="item.content" :theme="mdTheme" />
           </div>
 
           <!-- 下次跟进时间（如果有） -->
@@ -125,9 +134,9 @@ function handleModalSuccess() {
 
 .content {
   /* MdPreview 默认有自己的样式，限制一下边距 */
+  /* background 走 inline style 的 token.colorFillTertiary，亮暗自动跟 */
   margin: 8px 0;
   padding: 8px 12px;
-  background: #fafafa;
   border-radius: 4px;
 }
 

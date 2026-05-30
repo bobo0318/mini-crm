@@ -10,7 +10,7 @@
 //   <FollowUpFormModal :customer-id="..." ref="modalRef" @success="..." />
 //   modalRef.value?.open()
 
-import { ref, reactive } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue/es/form'
 import type { Dayjs } from 'dayjs'
@@ -22,6 +22,11 @@ import 'md-editor-v3/lib/style.css'
 
 import { createFollowUp } from '@/api/followUp'
 import { TYPE_OPTIONS } from './followUp.data'
+import { useSettingsStore } from '@/stores/settings'
+
+// D11：md-editor-v3 自带主题，传 settings.theme 让它跟着切
+const settings = useSettingsStore()
+const mdTheme = computed(() => settings.theme)
 
 const props = defineProps<{ customerId: number }>()
 const emit = defineEmits<{ success: [] }>()
@@ -155,6 +160,7 @@ async function handleOk() {
         <!-- 高度 300px 够写一段内容了 -->
         <MdEditor
           v-model="formData.content"
+          :theme="mdTheme"
           :preview="false"
           :toolbars-exclude="['github', 'save', 'catalog']"
           style="height: 300px"

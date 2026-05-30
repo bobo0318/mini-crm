@@ -7,54 +7,77 @@
 //   - 路由表里把 Dashboard / CustomerList 等作为它的 children
 //   - 子路由的 component 就会被渲染到 <router-view /> 的位置
 
-import { computed, ref, type Component } from 'vue'
+import { computed, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   DashboardOutlined,
   TeamOutlined,
   FundOutlined,
   SettingOutlined,
   LogoutOutlined,
+  GlobalOutlined,
+  BulbOutlined,
+  BulbFilled,
 } from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue'
+import { message, theme as antTheme } from 'ant-design-vue'
 
 import { useUserStore } from '@/stores/user'
+import { useSettingsStore } from '@/stores/settings'
+
+// D11：拿当前主题的 token（亮/暗自动切）
+// token.value.colorBgContainer  组件背景色（亮白 / 暗灰）
+// token.value.colorBorderSecondary  弱分割线
+// token.value.colorText  正文文字色
+const { token } = antTheme.useToken()
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const settings = useSettingsStore()
+
+// useI18n() 拿到 t 函数 + locale ref
+// 注意：用 { locale } 解构出来的是个 ref，可以双向赋值
+const { t, locale: i18nLocale } = useI18n()
 
 // =====================================================
-// 侧栏菜单数据（D9 加 permission 字段做权限过滤）
+// 联动 settings.locale → vue-i18n 的 locale
 // =====================================================
-// 字段说明：
-//   key        —— 用 path 做 key，方便和当前路由 path 对应（高亮联动）
-//   label      —— 菜单显示文字
-//   icon       —— 菜单图标
-//   permission —— 看到这一项需要的权限码（缺省 = 所有登录用户都能看，如工作台）
-//   children   —— 子菜单（D9 系统管理用，admin 才看得到）
 //
-// 实际渲染走 computed visibleMenuItems：按当前用户权限过滤
+// settings store 是项目"语言真理之源"；vue-i18n 的 locale 是它的"使用者"
+// F5 后 store hydrate 时 settings.locale 会变成持久化值，watch 一下让 i18n 跟上
+// immediate:true 保证首次进来也同步一次
+watch(
+  () => settings.locale,
+  (val) => {
+    i18nLocale.value = val
+  },
+  { immediate: true },
+)
+
+// =====================================================
+// 侧栏菜单数据（D9 加 permission，D11 把 label 改成 i18nKey）
+// =====================================================
 type MenuItem = {
   key: string
-  label: string
+  i18nKey: string
   icon: Component
   permission?: string
   children?: MenuItem[]
 }
 
 const allMenuItems: MenuItem[] = [
-  { key: '/dashboard', label: '工作台', icon: DashboardOutlined },
-  { key: '/customer/list', label: '客户管理', icon: TeamOutlined, permission: 'customer:read' },
-  { key: '/deal/board', label: '销售漏斗', icon: FundOutlined, permission: 'deal:read' },
+  { key: '/dashboard', i18nKey: 'menu.dashboard', icon: DashboardOutlined },
+  { key: '/customer/list', i18nKey: 'menu.customer', icon: TeamOutlined, permission: 'customer:read' },
+  { key: '/deal/board', i18nKey: 'menu.deal', icon: FundOutlined, permission: 'deal:read' },
   {
     key: '/system',
-    label: '系统管理',
+    i18nKey: 'menu.system',
     icon: SettingOutlined,
-    permission: 'role:read',  // admin 才有这个权限
+    permission: 'role:read',
     children: [
-      { key: '/system/role', label: '角色管理', icon: SettingOutlined, permission: 'role:read' },
-      { key: '/system/user', label: '用户管理', icon: TeamOutlined, permission: 'user:read' },
+      { key: '/system/role', i18nKey: 'menu.systemRole', icon: SettingOutlined, permission: 'role:read' },
+      { key: '/system/user', i18nKey: 'menu.systemUser', icon: TeamOutlined, permission: 'user:read' },
     ],
   },
 ]
@@ -110,7 +133,7 @@ const collapsed = ref(false)
 // =====================================================
 function handleLogout() {
   userStore.logout()
-  message.success('已退出登录')
+  message.success(t('layout.logout') + ' ✓')
   router.replace('/login')
 }
 </script>
@@ -147,17 +170,17 @@ function handleLogout() {
           <a-sub-menu v-if="item.children" :key="item.key">
             <template #title>
               <component :is="item.icon" />
-              <span>{{ item.label }}</span>
+              <span>{{ $t(item.i18nKey) }}</span>
             </template>
             <a-menu-item v-for="child in item.children" :key="child.key">
               <component :is="child.icon" />
-              <span>{{ child.label }}</span>
+              <span>{{ $t(child.i18nKey) }}</span>
             </a-menu-item>
           </a-sub-menu>
           <a-menu-item v-else :key="item.key">
             <!-- component :is 是 Vue 的动态组件语法：把 item.icon 这个组件当成标签来渲染 -->
             <component :is="item.icon" />
-            <span>{{ item.label }}</span>
+            <span>{{ $t(item.i18nKey) }}</span>
           </a-menu-item>
         </template>
       </a-menu>
@@ -165,34 +188,63 @@ function handleLogout() {
 
     <!-- 右侧主区域（顶栏 + 内容） -->
     <a-layout>
-      <!-- 顶栏 -->
-      <a-layout-header class="header">
+      <!-- 顶栏：背景/分割线 绑 AD token，主题切换自动跟 -->
+      <a-layout-header
+        class="header"
+        :style="{
+          background: token.colorBgContainer,
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        }"
+      >
         <!-- 顶栏左侧占位（D11 可以加面包屑） -->
         <div class="header-left"></div>
 
-        <!-- 顶栏右侧：用户名 + 下拉菜单 -->
-        <!-- a-dropdown 鼠标悬停在 trigger 上显示下拉内容 -->
-        <a-dropdown>
-          <span class="user-trigger">
-            {{ userStore.userInfo?.name || '用户' }}
-            <span class="email">({{ userStore.userInfo?.email }})</span>
-          </span>
+        <!-- 顶栏右侧：切换按钮 + 用户名 + 下拉菜单 -->
+        <a-space :size="12">
+          <!-- 语言切换：点一下中英互换；按钮上显示对方语言提示用户"会切到啥" -->
+          <a-tooltip :title="$t('layout.languageTip')">
+            <a-button type="text" @click="settings.toggleLocale">
+              <template #icon><GlobalOutlined /></template>
+              {{ settings.locale === 'zh-CN' ? 'EN' : '中' }}
+            </a-button>
+          </a-tooltip>
 
-          <!-- v-slot:overlay 是 a-dropdown 的具名插槽，放下拉菜单本体 -->
-          <template #overlay>
-            <a-menu>
-              <a-menu-item key="logout" @click="handleLogout">
-                <LogoutOutlined />
-                <span>退出登录</span>
-              </a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
+          <!-- 主题切换：亮 ↔ 暗。图标也换：亮态显示 Bulb（开灯），暗态显示 BulbFilled（实心灯） -->
+          <a-tooltip :title="$t('layout.themeTip')">
+            <a-button type="text" @click="settings.toggleTheme">
+              <template #icon>
+                <BulbFilled v-if="settings.theme === 'dark'" />
+                <BulbOutlined v-else />
+              </template>
+            </a-button>
+          </a-tooltip>
+
+          <!-- a-dropdown 鼠标悬停在 trigger 上显示下拉内容 -->
+          <a-dropdown>
+            <span class="user-trigger" :style="{ color: token.colorText }">
+              {{ userStore.userInfo?.name || '用户' }}
+              <span class="email">({{ userStore.userInfo?.email }})</span>
+            </span>
+
+            <!-- v-slot:overlay 是 a-dropdown 的具名插槽，放下拉菜单本体 -->
+            <template #overlay>
+              <a-menu>
+                <a-menu-item key="logout" @click="handleLogout">
+                  <LogoutOutlined />
+                  <span>{{ $t('layout.logout') }}</span>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
       </a-layout-header>
 
       <!-- 内容区：路由出口 -->
-      <!-- 子路由的页面会渲染到这里 -->
-      <a-layout-content class="content">
+      <!-- 子路由的页面会渲染到这里；背景同样绑 token -->
+      <a-layout-content
+        class="content"
+        :style="{ background: token.colorBgContainer }"
+      >
         <router-view />
       </a-layout-content>
     </a-layout>
@@ -218,16 +270,12 @@ function handleLogout() {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* 顶栏 */
+/* 顶栏（D11：background / border 走 token inline style，亮暗主题自动跟） */
 .header {
-  /* Ant Design 默认 header 是深蓝色，这里覆盖成白色更"中后台风" */
-  background: #fff;
   padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* 顶栏下面来一条浅灰分割线 */
-  border-bottom: 1px solid #f0f0f0;
 }
 
 .header-left {
@@ -237,8 +285,7 @@ function handleLogout() {
 
 .user-trigger {
   cursor: pointer;
-  color: #333;
-  /* 让 hover 时有反馈 */
+  /* color 走 inline style 的 token.colorText（亮暗自动跟） */
   padding: 0 8px;
   transition: color 0.2s;
 }
@@ -246,17 +293,16 @@ function handleLogout() {
   color: #1677ff;
 }
 .email {
+  /* #999 在亮/暗模式下都还能看（中灰 vs 中浅灰对比都够）—— 不动 */
   color: #999;
   margin-left: 4px;
   font-size: 12px;
 }
 
-/* 内容区 */
+/* 内容区（D11：background 走 token inline style） */
 .content {
-  /* 内容跟顶栏 / 侧栏之间留点间距 */
   margin: 16px;
   padding: 24px;
-  background: #fff;
   /* 内容区本身允许滚动，不影响顶栏和侧栏 */
   min-height: calc(100vh - 64px - 32px);
 }

@@ -14,6 +14,19 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+    // 让 vue / vue-i18n 共享同一个 vue runtime 实例
+    // 多实例会导致 vue-i18n 拿到的 currentInstance 是另一个 vue 副本，
+    // 出现 "init_runtime_dom_esm_bundler is not defined" 类的内部错误
+    dedupe: ['vue'],
+  },
+
+  // D11：让 Vite 不预构建 vue-i18n
+  // 默认 Vite 会用 esbuild 把 vue-i18n 打成单文件 ESM 放 .vite/deps/，
+  // 但 vue-i18n 11.x 的 esm-bundler 入口里对 @vue/runtime-dom 的引用方式
+  // 跟 esbuild 的 ESM 处理不兼容（init_xxx helper 被错位 hoist），导致运行时 ReferenceError
+  // exclude 后浏览器直接走原生 ESM 加载 vue-i18n，问题消失
+  optimizeDeps: {
+    exclude: ['vue-i18n'],
   },
 
   // 开发服务器配置

@@ -13,3 +13,48 @@ body {
 #app {
   min-height: 100vh;
 }
+
+/* =====================================================
+ * D11：webkit autofill 适配暗黑模式
+ * =====================================================
+ *
+ * 问题：Chrome 自动填充邮箱/密码时，浏览器会给 input 强制加一个
+ *      原生背景色（浅黄/亮白），盖住 Ant Design Vue 的暗黑样式
+ *
+ * 解决：用 -webkit-box-shadow 的 inset 撑满 input 容器，模拟"背景色"
+ *      （直接 background-color 改不了，autofill 的优先级太高）
+ *      字色用 -webkit-text-fill-color
+ *
+ * transition: 5000s 是 hack：让 autofill 的背景过渡几乎冻结，
+ *      避免 Chrome 在 autofill 时短暂闪一下白底
+ */
+@media (prefers-color-scheme: dark), screen {
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    transition: background-color 5000s ease-in-out 0s;
+    /* 用伪 inset shadow 当背景：亮态白底 #fff，暗态深底 #1f1f1f
+       这里用 transparent，让下面 AD Vue 的 token 背景透出来；
+       但 webkit 至少要给一个值，否则 autofill 默认浅黄
+       所以分两套，由 :root[data-theme] 控制 */
+  }
+
+  /* 亮态：白底 + 深字 */
+  html:not(.theme-dark) input:-webkit-autofill,
+  html:not(.theme-dark) input:-webkit-autofill:hover,
+  html:not(.theme-dark) input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+    -webkit-text-fill-color: rgba(0, 0, 0, 0.88) !important;
+    caret-color: rgba(0, 0, 0, 0.88);
+  }
+
+  /* 暗态：深底 + 浅字 */
+  html.theme-dark input:-webkit-autofill,
+  html.theme-dark input:-webkit-autofill:hover,
+  html.theme-dark input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #141414 inset !important;
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.85) !important;
+    caret-color: rgba(255, 255, 255, 0.85);
+  }
+}

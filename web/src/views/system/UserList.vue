@@ -280,16 +280,25 @@ async function handleDelete(record: AdminUserRow) {
         layout="vertical"
       >
         <a-form-item label="邮箱" name="email">
-          <a-input v-model:value="formData.email" placeholder="登录用的邮箱" />
+          <!-- autocomplete="off"：告诉 Chrome 这不是登录表单，别 autofill
+               业务场景：admin 在后台"新增用户"，不应该被浏览器存的凭证干扰 -->
+          <a-input
+            v-model:value="formData.email"
+            placeholder="登录用的邮箱"
+            autocomplete="off"
+          />
         </a-form-item>
 
         <a-form-item
           :label="isEdit ? '密码（留空 = 不修改）' : '密码'"
           name="password"
         >
+          <!-- autocomplete="new-password" 是 Chrome 标准约定：
+               表示"这是创建新账号场景"，浏览器会避免 autofill 已存的密码 -->
           <a-input-password
             v-model:value="formData.password"
             :placeholder="isEdit ? '留空保持原密码' : '至少 6 位'"
+            autocomplete="new-password"
           />
         </a-form-item>
 

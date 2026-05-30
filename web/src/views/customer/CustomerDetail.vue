@@ -10,12 +10,16 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeftOutlined } from '@ant-design/icons-vue'
+import { theme as antTheme } from 'ant-design-vue'
 
 import { getCustomerDetail, type Customer } from '@/api/customer'
 import { stageMap } from './customer.data'
 import { formatTime } from '@/utils/format'
 import ContactList from './contact/ContactList.vue'
 import FollowUpTimeline from './followUp/FollowUpTimeline.vue'
+
+// D11：拿主题 token，给 .tabs 容器背景用
+const { token } = antTheme.useToken()
 
 // 路由参数注入
 // props: true 让路由的 :id 直接作为组件 props 传进来
@@ -94,7 +98,11 @@ onMounted(fetchCustomer)
 
     <!-- 三个 Tab -->
     <!-- v-model:activeKey 双向绑定当前激活的 tab key -->
-    <a-tabs v-model:activeKey="activeTab" class="tabs">
+    <a-tabs
+      v-model:activeKey="activeTab"
+      class="tabs"
+      :style="{ background: token.colorBgContainer, padding: '0 16px' }"
+    >
       <a-tab-pane key="info" tab="基本信息">
         <div class="placeholder">基本信息 Tab（下一批填真内容）</div>
       </a-tab-pane>
@@ -146,9 +154,7 @@ onMounted(fetchCustomer)
   /* 让分隔更舒服 */
 }
 
-.tabs {
-  background: #fff;
-}
+/* .tabs 背景走 inline style 的 token.colorBgContainer */
 
 .placeholder {
   padding: 40px 0;

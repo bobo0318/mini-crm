@@ -1,76 +1,77 @@
 <script setup lang="ts">
 // 登录页
 // 路径：/login   不需要登录态也能访问（在路由守卫里会放行）
+//
+// D11：全量 i18n + 加语言切换按钮（用户登录前也能切语言）
 
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { useI18n } from 'vue-i18n'
+import { message, theme as antTheme } from 'ant-design-vue'
+import { GlobalOutlined } from '@ant-design/icons-vue'
 import type { Rule } from 'ant-design-vue/es/form'
 
 import { login } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
+import { useSettingsStore } from '@/stores/settings'
 
-// =====================================================
-// 依赖：router 用来跳转，route 用来读 query.redirect
-// =====================================================
+// D11：拿当前主题 token，给登录页的背景/卡片用，暗黑自动跟
+const { token } = antTheme.useToken()
+
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const settings = useSettingsStore()
+const { t, locale: i18nLocale } = useI18n()
+
+// 联动 settings.locale → vue-i18n.locale
+// 跟 MainLayout 同套路（登录页跟主布局是平级路由，i18n 不会自动跨页面同步）
+watch(
+  () => settings.locale,
+  (val) => {
+    i18nLocale.value = val
+  },
+  { immediate: true },
+)
 
 // =====================================================
 // 表单数据 & 校验规则
 // =====================================================
-// reactive 比 ref 更适合"一坨字段"的场景；模板里直接 form.email 用，不用 .value
 const form = reactive({
-  email: 'admin@test.com', // 默认填好，方便调试；正式项目要去掉
+  email: 'admin@test.com',
   password: '123456',
 })
 
-// a-form 的 rules 写法（你在 Vben 里见过）
-// 每个字段一个数组，可以放多条规则
-const rules: Record<string, Rule[]> = {
+// rules 用 computed 包一层：i18n locale 变了，校验消息也跟着变
+// 不用 computed 也能跑，但用户切语言后触发校验会看到旧 locale 的红字
+const rules = computed<Record<string, Rule[]>>(() => ({
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
+    { required: true, message: t('login.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('login.emailInvalid'), trigger: 'blur' },
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码至少 6 位', trigger: 'blur' },
+    { required: true, message: t('login.passwordRequired'), trigger: 'blur' },
   ],
-}
+}))
 
-// 提交时的 loading 态：防止用户连点 → 重复提交
 const loading = ref(false)
 
-// =====================================================
-// 提交登录
-// =====================================================
-// a-form 的 finish 事件回调：在表单校验全部通过后才会触发
 async function handleSubmit() {
   loading.value = true
   try {
-    // 1. 调登录接口（拦截器统一处理错误，这里只关心成功逻辑）
     const result = await login({
       email: form.email,
       password: form.password,
     })
 
-    // 2. 把 token 和 user 存进 store（persistedstate 插件会自动同步到 localStorage）
     userStore.setAuth(result)
+    message.success(t('common.success'))
 
-    // 3. 提示一下
-    message.success('登录成功')
-
-    // 4. 跳转
-    //    - 如果 URL 上有 ?redirect=xxx，说明是从某个受保护页被踢回来的，登录后回到那
-    //    - 没有就默认进工作台 /dashboard
-    //    redirect 来自 query，可能是 string 或 LocationQueryValue[]，做个兼容
     const redirect = route.query.redirect
     const target = typeof redirect === 'string' ? redirect : '/dashboard'
     router.replace(target)
   } catch {
-    // 错误信息已经被 axios 拦截器统一弹出，这里啥都不用做
-    // 加 catch 是为了避免控制台出现 unhandled promise rejection
+    // 错误信息已经被 axios 拦截器统一弹出
   } finally {
     loading.value = false
   }
@@ -78,36 +79,44 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <!-- 整页居中容器，浅灰背景 -->
-  <div class="login-page">
-    <div class="login-card">
-      <h2 class="login-title">Mini CRM 登录</h2>
+  <!-- D11：背景/卡片背景绑 token，暗黑模式自动跟 -->
+  <div class="login-page" :style="{ background: token.colorBgLayout }">
+    <!-- 右上角语言切换：浮动定位 -->
+    <a-button class="lang-switch" type="text" @click="settings.toggleLocale">
+      <template #icon><GlobalOutlined /></template>
+      {{ settings.locale === 'zh-CN' ? 'EN' : '中' }}
+    </a-button>
 
-      <!--
-        a-form 的几个要点：
-          - :model 绑定数据对象
-          - :rules 绑定校验规则
-          - @finish 提交时（校验通过后）触发
-          - layout="vertical" 让 label 在输入框上方（中后台常见布局）
-      -->
+    <div
+      class="login-card"
+      :style="{
+        background: token.colorBgContainer,
+        color: token.colorText,
+      }"
+    >
+      <h2 class="login-title">{{ $t('login.title') }}</h2>
+      <p class="login-subtitle">{{ $t('login.subtitle') }}</p>
+
       <a-form
         :model="form"
         :rules="rules"
         layout="vertical"
         @finish="handleSubmit"
       >
-        <a-form-item label="邮箱" name="email">
+        <a-form-item name="email">
           <a-input
             v-model:value="form.email"
-            placeholder="请输入邮箱"
+            :placeholder="$t('login.emailPlaceholder')"
             allow-clear
+            size="large"
           />
         </a-form-item>
 
-        <a-form-item label="密码" name="password">
+        <a-form-item name="password">
           <a-input-password
             v-model:value="form.password"
-            placeholder="请输入密码"
+            :placeholder="$t('login.passwordPlaceholder')"
+            size="large"
           />
         </a-form-item>
 
@@ -116,14 +125,15 @@ async function handleSubmit() {
             type="primary"
             html-type="submit"
             block
+            size="large"
             :loading="loading"
           >
-            登录
+            {{ $t('login.submit') }}
           </a-button>
         </a-form-item>
 
         <div class="login-hint">
-          默认账号：admin@test.com / 123456
+          默认账号 / Default：admin@test.com / 123456
         </div>
       </a-form>
     </div>
@@ -132,26 +142,39 @@ async function handleSubmit() {
 
 <style scoped>
 .login-page {
+  /* background 走 inline style 的 token.colorBgLayout，亮暗自动跟 */
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f2f5;
+  position: relative;
+}
+
+.lang-switch {
+  position: absolute;
+  top: 16px;
+  right: 24px;
 }
 
 .login-card {
+  /* background / color 走 inline style 的 token */
   width: 360px;
   padding: 32px 28px;
-  background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
 .login-title {
   text-align: center;
-  margin: 0 0 24px;
+  margin: 0 0 4px;
   font-size: 22px;
-  color: #1f1f1f;
+}
+
+.login-subtitle {
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  margin: 0 0 24px;
 }
 
 .login-hint {

@@ -11,9 +11,12 @@
 //   - 卡片"标记丢失"按钮
 
 import { onMounted, reactive, ref } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, theme as antTheme } from 'ant-design-vue'
 import { CloseOutlined } from '@ant-design/icons-vue'
 import draggable from 'vuedraggable'
+
+// D11：拿主题 token，给看板列背景 + 卡片背景用
+const { token } = antTheme.useToken()
 
 import { getDealList, updateDeal, type Deal, type DealStage } from '@/api/deal'
 import { BOARD_STAGES, stageMap } from './deal.data'
@@ -199,6 +202,7 @@ function formatAmount(amount: number | null): string {
           v-for="stage in BOARD_STAGES"
           :key="stage.value"
           class="board-column"
+          :style="{ background: token.colorFillSecondary }"
         >
           <!-- 列头 -->
           <div class="column-header">
@@ -227,7 +231,11 @@ function formatAmount(amount: number | null): string {
             <!-- ⚠️ #item 插槽必须只有一个子节点（vuedraggable 强约束），
                  连 HTML 注释都算"额外子节点"，所以解释性注释只能写在 div 内部或这种"包在外层"的位置 -->
             <template #item="{ element: deal }">
-              <div class="deal-card" @click="handleEdit(deal)">
+              <div
+                class="deal-card"
+                :style="{ background: token.colorBgContainer, color: token.colorText }"
+                @click="handleEdit(deal)"
+              >
                 <!-- 标记丢失按钮（hover 卡片时才显示）
                      class="no-drag" 让 vuedraggable 的 filter 跳过它，按钮区域不触发拖拽
                      @click.stop 阻止冒泡：否则点按钮会同时打开编辑弹窗 -->
@@ -293,7 +301,7 @@ function formatAmount(amount: number | null): string {
 }
 
 .board-column {
-  background: #ebecf0;
+  /* D11：background 走 inline style 的 token.colorFillSecondary，亮暗自动跟 */
   border-radius: 6px;
   padding: 12px;
   min-height: 400px;
@@ -326,9 +334,8 @@ function formatAmount(amount: number | null): string {
 }
 
 .deal-card {
-  /* position: relative 让内部 .lost-btn 用 absolute 定位时锚定卡片 */
+  /* D11：background/color 走 inline style 的 token，亮暗自动跟 */
   position: relative;
-  background: #fff;
   border-radius: 4px;
   padding: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
