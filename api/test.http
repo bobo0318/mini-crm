@@ -24,7 +24,7 @@ POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
 {
-  "email": "sales01@test.com",
+  "email": "admin@test.com",
   "password": "123456",
   "name": "中文预发布"
 }
@@ -48,7 +48,7 @@ POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-  "email": "sales01@test.com",
+  "email": "admin@test.com",
   "password": "123456"
 }
 
@@ -430,6 +430,414 @@ Authorization: Bearer {{login.response.body.token}}
 ### ㊻ 销售排行 Top 10（仅 won 商机的总金额）
 GET {{baseUrl}}/api/stats/sales-rank
 Authorization: Bearer {{login.response.body.token}}
+
+
+# ============================================================
+# D12 - 演示数据（一键造一批客户 / 联系人 / 跟进 / 商机）
+# ============================================================
+#
+# 用法：从 ③ 登录开始，按顺序点 Send Request
+# 每个客户响应会被 @name 捕获，后续 contacts / followUps / deals 引用 {{xxx.response.body.id}}
+# 不需要手填 customerId
+#
+# 数据规划：
+#   5 个客户（admin owner，覆盖不同 stage / level / industry）
+#   每客户 2 联系人（共 ~8）
+#   3 客户各 2 跟进（共 6）
+#   8 个商机（lead 2 / contact 2 / quote 2 / won 2，给仪表盘漏斗 + 排行榜留素材）
+
+
+###
+# ---- 客户 1：字节跳动（联系中，A 级）----
+# @name custByte
+POST {{baseUrl}}/api/customers
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "张总",
+  "company": "字节跳动",
+  "level": "A",
+  "industry": "互联网",
+  "source": "官网注册",
+  "stage": "contact",
+  "tags": ["重点客户", "北方区"]
+}
+
+
+###
+# ---- 客户 2：阿里巴巴（已意向，A 级）----
+# @name custAli
+POST {{baseUrl}}/api/customers
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "李经理",
+  "company": "阿里巴巴",
+  "level": "A",
+  "industry": "电商",
+  "source": "展会",
+  "stage": "qualified",
+  "tags": ["重点客户", "华东"]
+}
+
+
+###
+# ---- 客户 3：腾讯（线索，B 级）----
+# @name custTencent
+POST {{baseUrl}}/api/customers
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "王经理",
+  "company": "腾讯",
+  "level": "B",
+  "industry": "游戏",
+  "source": "朋友介绍",
+  "stage": "lead",
+  "tags": ["华南"]
+}
+
+
+###
+# ---- 客户 4：美的集团（已成交，A 级）----
+# @name custMidea
+POST {{baseUrl}}/api/customers
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "陈总",
+  "company": "美的集团",
+  "level": "A",
+  "industry": "制造业",
+  "source": "广告投放",
+  "stage": "won",
+  "tags": ["已签约", "华南"]
+}
+
+
+###
+# ---- 客户 5：新东方（流失，C 级）----
+# @name custXdf
+POST {{baseUrl}}/api/customers
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "刘老师",
+  "company": "新东方",
+  "level": "C",
+  "industry": "教育",
+  "stage": "lost"
+}
+
+
+# ============================================================
+# 联系人（每客户 2 个）
+# ============================================================
+
+# ---- 字节跳动 - 联系人 ----
+###
+POST {{baseUrl}}/api/customers/{{custByte.response.body.id}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "张总",
+  "phone": "13800000001",
+  "email": "zhang@bytedance.com",
+  "position": "技术总监",
+  "isPrimary": true
+}
+
+###
+POST {{baseUrl}}/api/customers/{{custByte.response.body.id}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "小赵",
+  "phone": "13800000002",
+  "email": "zhao@bytedance.com",
+  "position": "采购"
+}
+
+
+# ---- 阿里巴巴 - 联系人 ----
+###
+POST {{baseUrl}}/api/customers/{{custAli.response.body.id}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "李经理",
+  "phone": "13900000001",
+  "email": "li@alibaba.com",
+  "position": "采购经理",
+  "isPrimary": true
+}
+
+###
+POST {{baseUrl}}/api/customers/{{custAli.response.body.id}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "小孙",
+  "email": "sun@alibaba.com",
+  "position": "前台"
+}
+
+
+# ---- 腾讯 - 联系人 ----
+###
+POST {{baseUrl}}/api/customers/{{custTencent.response.body.id}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "王经理",
+  "phone": "13700000001",
+  "email": "wang@tencent.com",
+  "position": "产品负责人",
+  "isPrimary": true
+}
+
+
+# ---- 美的 - 联系人（已签约客户，2 个）----
+###
+POST {{baseUrl}}/api/customers/{{custMidea.response.body.id}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "陈总",
+  "phone": "13600000001",
+  "email": "chen@midea.com",
+  "position": "CIO",
+  "isPrimary": true
+}
+
+###
+POST {{baseUrl}}/api/customers/{{custMidea.response.body.id}}/contacts
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "name": "周财务",
+  "phone": "13600000002",
+  "email": "zhou@midea.com",
+  "position": "财务总监"
+}
+
+
+# ============================================================
+# 跟进记录（Markdown 内容）
+# ============================================================
+
+# ---- 字节跳动 跟进 ----
+###
+POST {{baseUrl}}/api/customers/{{custByte.response.body.id}}/follow-ups
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "type": "call",
+  "content": "## 电话沟通\n\n聊了下 Q3 的采购计划，**预算约 80W**。\n\n关注点：\n- 系统稳定性\n- 数据迁移成本\n- 售后响应速度\n\n下次约视频详谈具体方案。",
+  "nextAt": "2026-06-15T14:00:00.000Z"
+}
+
+###
+POST {{baseUrl}}/api/customers/{{custByte.response.body.id}}/follow-ups
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "type": "visit",
+  "content": "上门拜访，演示了产品 demo。\n\n张总对**仪表盘功能**很感兴趣，让我们做一个定制方案。"
+}
+
+
+# ---- 阿里巴巴 跟进 ----
+###
+POST {{baseUrl}}/api/customers/{{custAli.response.body.id}}/follow-ups
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "type": "wechat",
+  "content": "微信沟通，确认了几个**关键需求**：\n\n1. 多角色权限\n2. 操作日志审计\n3. 数据导出 Excel\n\n这些我们都有，下周做 POC 给他们看。",
+  "nextAt": "2026-06-20T10:00:00.000Z"
+}
+
+###
+POST {{baseUrl}}/api/customers/{{custAli.response.body.id}}/follow-ups
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "type": "email",
+  "content": "发送了**正式报价单**。\n\n报价 120W，分 3 年付款。等回复中。"
+}
+
+
+# ---- 腾讯 跟进 ----
+###
+POST {{baseUrl}}/api/customers/{{custTencent.response.body.id}}/follow-ups
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "type": "call",
+  "content": "初次沟通，介绍了公司和产品。\n\n王经理表示**先了解一下**，没急需。\n\n建议放在 nurture list 慢慢培育。"
+}
+
+
+# ---- 美的 跟进（成交客户，回顾性跟进）----
+###
+POST {{baseUrl}}/api/customers/{{custMidea.response.body.id}}/follow-ups
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "type": "visit",
+  "content": "🎉 **签约成功！**\n\n合同金额：**¥1,500,000**\n\n实施周期：3 个月\n\n下一步：本周组建项目组，下周启动 Kickoff Meeting。",
+  "nextAt": "2026-06-05T09:00:00.000Z"
+}
+
+
+# ============================================================
+# 商机（8 个，覆盖 4 个看板 stage + 1 个 lost）
+# ============================================================
+
+# ---- lead 阶段 2 个 ----
+###
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{custByte.response.body.id}},
+  "title": "字节 - CRM 系统采购",
+  "amount": 800000,
+  "stage": "lead",
+  "probability": 30
+}
+
+###
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{custTencent.response.body.id}},
+  "title": "腾讯 - 营销 SaaS 试点",
+  "amount": 200000,
+  "stage": "lead",
+  "probability": 20
+}
+
+
+# ---- contact 阶段 2 个 ----
+###
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{custByte.response.body.id}},
+  "title": "字节 - 数据分析模块",
+  "amount": 450000,
+  "stage": "contact",
+  "probability": 50
+}
+
+###
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{custAli.response.body.id}},
+  "title": "阿里 - 内部 CRM 替换",
+  "amount": 1200000,
+  "stage": "contact",
+  "probability": 60
+}
+
+
+# ---- quote 阶段 2 个 ----
+###
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{custAli.response.body.id}},
+  "title": "阿里 - 商家服务平台",
+  "amount": 2000000,
+  "stage": "quote",
+  "probability": 75
+}
+
+###
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{custMidea.response.body.id}},
+  "title": "美的 - 二期定制开发",
+  "amount": 600000,
+  "stage": "quote",
+  "probability": 80
+}
+
+
+# ---- won 阶段 2 个（给仪表盘销售排行榜留数据）----
+###
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{custMidea.response.body.id}},
+  "title": "美的 - 全集团 CRM 主项目",
+  "amount": 1500000,
+  "stage": "won",
+  "probability": 100
+}
+
+###
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{custAli.response.body.id}},
+  "title": "阿里 - 小程序 CRM 试点",
+  "amount": 350000,
+  "stage": "won",
+  "probability": 100
+}
+
+
+# ---- lost 1 个（新东方流失，演示标记丢失场景）----
+###
+POST {{baseUrl}}/api/deals
+Authorization: Bearer {{login.response.body.token}}
+Content-Type: application/json
+
+{
+  "customerId": {{custXdf.response.body.id}},
+  "title": "新东方 - 学员管理系统（已弃单）",
+  "amount": 300000,
+  "stage": "lost",
+  "probability": 0
+}
 
 
 ### ㊸ 删除商机 id=3
