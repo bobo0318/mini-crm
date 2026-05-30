@@ -20,6 +20,7 @@ import followUpRoutes from './routes/followUp'
 import dealRoutes from './routes/deal'
 import roleRoutes from './routes/role'
 import userRoutes from './routes/user'
+import statsRoutes from './routes/stats'
 
 const app = new Hono()
 
@@ -90,6 +91,9 @@ app.route('/api/roles', roleRoutes)
 
 // 用户管理（D9）：GET/POST/PUT/DELETE /api/users
 app.route('/api/users', userRoutes)
+
+// 仪表盘统计（D10）：GET /api/stats/*
+app.route('/api/stats', statsRoutes)
 
 // =====================================================
 // 启动 HTTP server

@@ -24,9 +24,9 @@ POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
 {
-  "email": "admin@test.com",
+  "email": "sales01@test.com",
   "password": "123456",
-  "name": "管理员"
+  "name": "中文预发布"
 }
 
 
@@ -48,7 +48,7 @@ POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-  "email": "admin@test.com",
+  "email": "sales01@test.com",
   "password": "123456"
 }
 
@@ -404,6 +404,31 @@ Authorization: Bearer {{login.response.body.token}}
 
 ### ㊷ 单查 lost：?stage=lost（应该能看到 id=2）
 GET {{baseUrl}}/api/deals?stage=lost
+Authorization: Bearer {{login.response.body.token}}
+
+
+# ============================================================
+# D10 - 仪表盘统计接口
+# 业务约定：admin / viewer 看全公司，sales 只看自己负责的
+# ============================================================
+
+### ㊸ 4 个核心指标
+GET {{baseUrl}}/api/stats/overview
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ㊹ 本月按天新增客户数（折线图数据）
+GET {{baseUrl}}/api/stats/customer-trend
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ㊺ 商机漏斗（lead/contact/quote/won 4 个 stage 的数量）
+GET {{baseUrl}}/api/stats/deal-funnel
+Authorization: Bearer {{login.response.body.token}}
+
+
+### ㊻ 销售排行 Top 10（仅 won 商机的总金额）
+GET {{baseUrl}}/api/stats/sales-rank
 Authorization: Bearer {{login.response.body.token}}
 
 
