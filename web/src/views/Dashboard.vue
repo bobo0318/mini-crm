@@ -47,6 +47,13 @@ const { chartRef: trendRef, setOption: setTrendOption } = useChart()
 const { chartRef: funnelRef, setOption: setFunnelOption } = useChart()
 const { chartRef: rankRef, setOption: setRankOption } = useChart()
 
+// D12 build 修复：vue-tsc 没把模板里 ref="trendRef" 等识别为"使用"，
+// noUnusedLocals 严格模式下报 unused —— 用 void 明确告诉 TS 这俩用了（模板里）
+// 这是 vue-tsc 对解构重命名的已知限制
+void trendRef
+void funnelRef
+void rankRef
+
 // stage 中文名（漏斗图 label 用）
 const stageLabelMap: Record<string, string> = {
   lead: '线索',
@@ -149,11 +156,13 @@ async function fetchAll() {
           data: sortedRank.map((r) => r.totalAmount),
           itemStyle: { color: '#52c41a' },
           // 柱子右侧显示金额
+          // 注：ECharts CallbackDataParams 类型 value 是 string|number|Date|array|object|null
+          // 太宽不能直接用，formatter 函数本身 cast 一下规避签名不匹配
           label: {
             show: true,
             position: 'right',
-            formatter: (params: { value: number }) =>
-              '¥' + params.value.toLocaleString('zh-CN'),
+            formatter: ((params: { value: number }) =>
+              '¥' + params.value.toLocaleString('zh-CN')) as never,
           },
         },
       ],

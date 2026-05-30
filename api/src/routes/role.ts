@@ -20,7 +20,7 @@ role.use('*', authMiddleware)
 // =====================================================
 // 权限：role:read（只有 admin 有这个权限码）
 role.get('/', permission('role:read'), async (c) => {
-  const data = db
+  const data = await db
     .select()
     .from(roles)
     .orderBy(asc(roles.id))  // 按 id 升序，跟 seed 时插入的顺序一致：admin / sales / viewer

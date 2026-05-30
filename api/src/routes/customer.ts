@@ -11,7 +11,7 @@ import { z } from 'zod'
 import { desc, eq, like, or, sql } from 'drizzle-orm'
 
 import { db } from '../db/client'
-import { customers } from '../db/schema'
+import { customers, contacts, followUps, deals } from '../db/schema'
 import { authMiddleware, type AuthEnv } from '../middlewares/auth'
 import { permission } from '../middlewares/permission'
 
@@ -76,7 +76,7 @@ customer.get('/', permission('customer:read'), async (c) => {
   // 3. 先查总数（分页器要用）
   //    drizzle 没有现成的 count 函数（高版本有，但写法约定俗成是用 sql 模板）
   //    sql<number>`count(*)` —— 模板字符串告诉 drizzle 用原生 SQL 片段，泛型告诉 TS 这是个 number
-  const totalRow = db
+  const totalRow = await db
     .select({ count: sql<number>`count(*)` })
     .from(customers)
     .where(whereCondition)
@@ -87,7 +87,7 @@ customer.get('/', permission('customer:read'), async (c) => {
   //    .orderBy(desc(...)) —— 按创建时间倒序，最新创建的排最前
   //    .limit(pageSize)    —— 一页最多多少条
   //    .offset((page-1)*pageSize) —— 跳过前面 N 条
-  const data = db
+  const data = await db
     .select()
     .from(customers)
     .where(whereCondition)
@@ -111,7 +111,7 @@ customer.get('/:id', permission('customer:read'), async (c) => {
     return c.json({ error: 'id 必须是数字' }, 400)
   }
 
-  const row = db.select().from(customers).where(eq(customers.id, id)).get()
+  const row = await db.select().from(customers).where(eq(customers.id, id)).get()
 
   if (!row) {
     return c.json({ error: '客户不存在' }, 404)
@@ -136,7 +136,7 @@ customer.post('/', permission('customer:create'), async (c) => {
   const { userId } = c.get('user')
 
   // 3. 插入并把新行返回回来
-  const newRow = db
+  const newRow = await db
     .insert(customers)
     .values({
       ...parsed.data,
@@ -169,7 +169,7 @@ customer.put('/:id', permission('customer:update'), async (c) => {
   }
 
   // 先查一下存不存在，存在才更新（不然 update 返回空更新条数，前端不好判断）
-  const existing = db.select().from(customers).where(eq(customers.id, id)).get()
+  const existing = await db.select().from(customers).where(eq(customers.id, id)).get()
   if (!existing) {
     return c.json({ error: '客户不存在' }, 404)
   }
@@ -184,7 +184,7 @@ customer.put('/:id', permission('customer:update'), async (c) => {
 
   // 更新并返回最新行
   // 注意：parsed.data 可能是个空对象（用户什么都没传），drizzle 不会报错，相当于啥也没改
-  const updated = db
+  const updated = await db
     .update(customers)
     .set(parsed.data)
     .where(eq(customers.id, id))
@@ -206,12 +206,22 @@ customer.delete('/:id', permission('customer:delete'), async (c) => {
   }
 
   // 同样：先校验存在性，再删
-  const existing = db.select().from(customers).where(eq(customers.id, id)).get()
+  const existing = await db.select().from(customers).where(eq(customers.id, id)).get()
   if (!existing) {
     return c.json({ error: '客户不存在' }, 404)
   }
 
-  db.delete(customers).where(eq(customers.id, id)).run()
+  // ⭐ D12：libsql 默认强制 FK 约束（比 better-sqlite3 严格），
+  //    客户被 contacts / followUps / deals 三张表引用，直接删客户会 FOREIGN KEY constraint failed
+  //    用事务级联删：4 张表的删除一起成功或一起回滚，避免删一半留脏数据
+  //
+  //    顺序：先删"引用方"（被外键指向的孩子），再删客户本身
+  await db.transaction(async (tx) => {
+    await tx.delete(followUps).where(eq(followUps.customerId, id)).run()
+    await tx.delete(contacts).where(eq(contacts.customerId, id)).run()
+    await tx.delete(deals).where(eq(deals.customerId, id)).run()
+    await tx.delete(customers).where(eq(customers.id, id)).run()
+  })
 
   // 删除成功通常返 { success: true } 或 204 No Content
   // 我们返 200 + JSON，前端处理统一一些

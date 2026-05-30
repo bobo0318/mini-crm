@@ -28,19 +28,28 @@ const app = new Hono()
 // 全局中间件
 // =====================================================
 //
-// 中间件 = 每次请求都会经过的"安检通道"
-// app.use('*', ...) 表示对所有路由生效（* = 通配符）
+// CORS：从环境变量读 origin（D12 改造）
+// CORS_ORIGIN 支持单个或多个域名（逗号分隔），缺省退回到本地 5173
 //
-// cors() 会自动给响应加上 Access-Control-Allow-* 这些 header，
-// 让浏览器同意跨域。
+// 单个：CORS_ORIGIN=http://localhost:5173
+// 多个：CORS_ORIGIN=http://localhost:5173,https://mini-crm.vercel.app
 //
-// 这里 origin 写死 5173 是为了安全（只允许我们前端调）。
-// 生产环境会换成正式域名，比如 'https://mini-crm.vercel.app'。
+// 安全约束：永远不能用 '*'，因为 credentials:true 跟 '*' 冲突（浏览器规范）
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
 app.use(
   '*',
   cors({
-    origin: 'http://localhost:5173',
-    credentials: true, // 允许携带 cookie（D3 登录后会用到）
+    // origin 接受字符串 / 函数；我们用函数模式以支持多 origin 白名单
+    origin: (origin) => {
+      // origin 为空 = 同源请求 / 服务端发起请求，放行
+      if (!origin) return origin ?? null
+      return allowedOrigins.includes(origin) ? origin : null
+    },
+    credentials: true, // 允许携带 cookie / Authorization 头
   }),
 )
 
@@ -98,7 +107,9 @@ app.route('/api/stats', statsRoutes)
 // =====================================================
 // 启动 HTTP server
 // =====================================================
-const port = 3000
+// D12：port 从环境变量读 —— Railway/Render/Fly 等平台通过 PORT 注入端口
+// 写死 3000 的话部署后路由进不来
+const port = Number(process.env.PORT) || 3000
 
 serve({
   fetch: app.fetch,

@@ -80,7 +80,7 @@ deal.get('/', permission('deal:read'), async (c) => {
     whereCondition = ne(deals.stage, 'lost')
   }
 
-  const data = db
+  const data = await db
     .select()
     .from(deals)
     .where(whereCondition)
@@ -99,7 +99,7 @@ deal.get('/:id', permission('deal:read'), async (c) => {
     return c.json({ error: 'id 必须是数字' }, 400)
   }
 
-  const row = db.select().from(deals).where(eq(deals.id, id)).get()
+  const row = await db.select().from(deals).where(eq(deals.id, id)).get()
   if (!row) {
     return c.json({ error: '商机不存在' }, 404)
   }
@@ -120,7 +120,7 @@ deal.post('/', permission('deal:create'), async (c) => {
   // owner_id 从 token 拿
   const { userId } = c.get('user')
 
-  const newRow = db
+  const newRow = await db
     .insert(deals)
     .values({
       ...parsed.data,
@@ -151,7 +151,7 @@ deal.put('/:id', permission('deal:update'), async (c) => {
     return c.json({ error: parsed.error.issues[0]?.message || '参数错误' }, 400)
   }
 
-  const existing = db.select().from(deals).where(eq(deals.id, id)).get()
+  const existing = await db.select().from(deals).where(eq(deals.id, id)).get()
   if (!existing) {
     return c.json({ error: '商机不存在' }, 404)
   }
@@ -164,7 +164,7 @@ deal.put('/:id', permission('deal:update'), async (c) => {
     return c.json({ error: '只能编辑自己负责的商机' }, 403)
   }
 
-  const updated = db
+  const updated = await db
     .update(deals)
     .set(parsed.data)
     .where(eq(deals.id, id))
@@ -184,12 +184,12 @@ deal.delete('/:id', permission('deal:delete'), async (c) => {
     return c.json({ error: 'id 必须是数字' }, 400)
   }
 
-  const existing = db.select().from(deals).where(eq(deals.id, id)).get()
+  const existing = await db.select().from(deals).where(eq(deals.id, id)).get()
   if (!existing) {
     return c.json({ error: '商机不存在' }, 404)
   }
 
-  db.delete(deals).where(eq(deals.id, id)).run()
+  await db.delete(deals).where(eq(deals.id, id)).run()
 
   return c.json({ success: true })
 })

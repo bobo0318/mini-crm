@@ -56,7 +56,7 @@ auth.post('/register', async (c) => {
 
   // 3. 查这个邮箱是否已经注册过
   //    .get() 表示"取一条"（返回 row 或 undefined）；.all() 是"取多条"（返回数组）
-  const existing = db.select().from(users).where(eq(users.email, email)).get()
+  const existing = await db.select().from(users).where(eq(users.email, email)).get()
   if (existing) {
     // 409 Conflict 是"资源已存在"的标准状态码
     return c.json({ error: '该邮箱已被注册' }, 409)
@@ -68,7 +68,7 @@ auth.post('/register', async (c) => {
   // 5. D9：查 sales 角色 id —— 新注册用户默认分配 sales 角色
   //    （admin 角色不能让人自己注册就拿到，否则任何人都能注册个 admin 把系统接管）
   //    要把人提升成 admin 得通过现有 admin 在"用户管理页"手动改
-  const salesRole = db.select().from(roles).where(eq(roles.name, 'sales')).get()
+  const salesRole = await db.select().from(roles).where(eq(roles.name, 'sales')).get()
   if (!salesRole) {
     // 这种情况只可能是 db:seed 没跑过 —— 早返回带明确错误
     return c.json({ error: 'sales 角色不存在，请先运行 npm run db:seed' }, 500)
@@ -77,7 +77,7 @@ auth.post('/register', async (c) => {
   // 6. 插入数据库
   //    .returning() 让 SQLite 把新插入的行返回回来（自增 id 已经填好了）
   //    .get() 拿到那一行
-  const newUser = db
+  const newUser = await db
     .insert(users)
     .values({
       email,
@@ -121,7 +121,7 @@ auth.post('/login', async (c) => {
   const { email, password } = parsed.data
 
   // 按邮箱查用户
-  const user = db.select().from(users).where(eq(users.email, email)).get()
+  const user = await db.select().from(users).where(eq(users.email, email)).get()
 
   // 安全要点：用户不存在 / 密码不对，两种情况统一返回同一个错误信息 + 401
   //   —— 否则攻击者可以拿来"枚举哪些邮箱注册过本站"
@@ -140,7 +140,7 @@ auth.post('/login', async (c) => {
   // 但保险起见做兜底
   let role: { name: string; permissions: string[] } | null = null
   if (user.roleId) {
-    const r = db.select().from(roles).where(eq(roles.id, user.roleId)).get()
+    const r = await db.select().from(roles).where(eq(roles.id, user.roleId)).get()
     if (r) role = { name: r.name, permissions: r.permissions as string[] }
   }
   if (!role) {

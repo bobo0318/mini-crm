@@ -44,14 +44,14 @@ followUp.get('/customers/:cid/follow-ups', permission('followUp:read'), async (c
     return c.json({ error: '客户 id 必须是数字' }, 400)
   }
 
-  const customerExists = db.select().from(customers).where(eq(customers.id, cid)).get()
+  const customerExists = await db.select().from(customers).where(eq(customers.id, cid)).get()
   if (!customerExists) {
     return c.json({ error: '客户不存在' }, 404)
   }
 
   // 按 createdAt 倒序（最新的跟进排在最前面）
   // 时间线 UI 通常就是这个顺序
-  const data = db
+  const data = await db
     .select()
     .from(followUps)
     .where(eq(followUps.customerId, cid))
@@ -70,7 +70,7 @@ followUp.post('/customers/:cid/follow-ups', permission('followUp:create'), async
     return c.json({ error: '客户 id 必须是数字' }, 400)
   }
 
-  const customerExists = db.select().from(customers).where(eq(customers.id, cid)).get()
+  const customerExists = await db.select().from(customers).where(eq(customers.id, cid)).get()
   if (!customerExists) {
     return c.json({ error: '客户不存在' }, 404)
   }
@@ -84,7 +84,7 @@ followUp.post('/customers/:cid/follow-ups', permission('followUp:create'), async
   // user_id 从 JWT 取，前端不传（防伪造，跟客户的 owner_id 同思路）
   const { userId } = c.get('user')
 
-  const newRow = db
+  const newRow = await db
     .insert(followUps)
     .values({
       ...parsed.data,

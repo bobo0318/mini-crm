@@ -42,11 +42,14 @@ function startOfMonth(): Date {
  * - admin / viewer → undefined（不加过滤）
  *
  * drizzle 的 where(undefined) 等价于"不加条件"，所以直接传 undefined 即可
+ *
+ * 类型：用 union 同时支持 customers.ownerId 和 deals.ownerId
+ *   （这俩 tableName 字面量不同，drizzle 强类型推导下不能互相赋值，所以要显式 union）
  */
 function ownerFilter(
   role: RoleContext,
   userId: number,
-  ownerIdColumn: typeof customers.ownerId,  // 列引用，customers.ownerId 或 deals.ownerId 都行
+  ownerIdColumn: typeof customers.ownerId | typeof deals.ownerId,
 ) {
   if (role.name === 'sales') return eq(ownerIdColumn, userId)
   return undefined
@@ -73,7 +76,7 @@ stats.get('/overview', permission('customer:read'), async (c) => {
   const dealOwner = ownerFilter(role, userId, deals.ownerId)
 
   // 总客户数
-  const totalCustomersRow = db
+  const totalCustomersRow = await db
     .select({ count: sql<number>`count(*)` })
     .from(customers)
     .where(custOwner)
@@ -81,14 +84,14 @@ stats.get('/overview', permission('customer:read'), async (c) => {
 
   // 本月新增客户数
   const monthStart = startOfMonth()
-  const newThisMonthRow = db
+  const newThisMonthRow = await db
     .select({ count: sql<number>`count(*)` })
     .from(customers)
     .where(and(gte(customers.createdAt, monthStart), custOwner))
     .get()
 
   // 进行中商机数（不在 won / lost 阶段）
-  const activeDealsRow = db
+  const activeDealsRow = await db
     .select({ count: sql<number>`count(*)` })
     .from(deals)
     .where(and(ne(deals.stage, 'won'), ne(deals.stage, 'lost'), dealOwner))
@@ -97,7 +100,7 @@ stats.get('/overview', permission('customer:read'), async (c) => {
   // 加权预期金额 = sum(amount * probability / 100) 仅未结束商机
   // amount / probability 都可能为 null —— SQL 里 null 参与算术结果是 null，sum 会跳过
   // 用 COALESCE 把 null 当 0 处理
-  const weightedRow = db
+  const weightedRow = await db
     .select({
       total: sql<number>`coalesce(sum(coalesce(amount, 0) * coalesce(probability, 0) / 100.0), 0)`,
     })
@@ -125,7 +128,7 @@ stats.get('/customer-trend', permission('customer:read'), async (c) => {
   const { userId } = c.get('user')
 
   const monthStart = startOfMonth()
-  const rows = db
+  const rows = await db
     .select({
       date: sql<string>`date(created_at, 'unixepoch')`.as('date'),
       count: sql<number>`count(*)`,
@@ -155,7 +158,7 @@ stats.get('/deal-funnel', permission('deal:read'), async (c) => {
   const role = c.get('role')
   const { userId } = c.get('user')
 
-  const rows = db
+  const rows = await db
     .select({
       stage: deals.stage,
       count: sql<number>`count(*)`,
@@ -186,7 +189,7 @@ stats.get('/sales-rank', permission('deal:read'), async (c) => {
   const role = c.get('role')
   const { userId } = c.get('user')
 
-  const rows = db
+  const rows = await db
     .select({
       ownerName: users.name,
       totalAmount: sql<number>`coalesce(sum(amount), 0)`,

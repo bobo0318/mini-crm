@@ -58,12 +58,13 @@ const VIEWER_PERMISSIONS = [
 // =====================================================
 // 主流程
 // =====================================================
-function seed() {
+// D12：libsql client 是 async API，所以 seed() 改成 async function
+async function seed() {
   // ---- 1. 角色种子数据 ----
   // 已有角色就跳过（让脚本可重复跑）
-  const existingRoles = db.select().from(roles).all()
+  const existingRoles = await db.select().from(roles).all()
   if (existingRoles.length === 0) {
-    db.insert(roles)
+    await db.insert(roles)
       .values([
         {
           name: 'admin',
@@ -89,31 +90,31 @@ function seed() {
 
   // ---- 2. 给老 users 补 admin ----
   // 取一下 admin 的 id（不能假设是 1，靠 name 查最稳）
-  const adminRole = db.select().from(roles).where(eq(roles.name, 'admin')).get()
+  const adminRole = await db.select().from(roles).where(eq(roles.name, 'admin')).get()
   if (!adminRole) {
     throw new Error('admin 角色不存在，无法补全旧用户')
   }
 
   // 把所有 role_id is null 的 user 设成 admin
-  // .run() 返回 { changes: 实际更新行数 }，可以用来报告
-  const result = db
+  // .run() 返回 ResultSet —— libsql 用 rowsAffected（不是 better-sqlite3 的 changes）
+  const result = await db
     .update(users)
     .set({ roleId: adminRole.id })
     .where(isNull(users.roleId))
     .run()
-  console.log(`✓ 已给 ${result.changes} 个旧用户补 admin 角色`)
+  console.log(`✓ 已给 ${result.rowsAffected} 个旧用户补 admin 角色`)
 }
 
 // =====================================================
 // 执行 + 退出
 // =====================================================
-// better-sqlite3 是同步 API，不需要 await
-// 但 node 进程不会自动退出（连接还在），手动 exit
-try {
-  seed()
-  console.log('\n🎉 Seed 完成')
-  process.exit(0)
-} catch (err) {
-  console.error('\n❌ Seed 失败:', err)
-  process.exit(1)
-}
+// D12：libsql client 是 async，要 await seed()；用 .then/.catch 链式更简洁
+seed()
+  .then(() => {
+    console.log('\n🎉 Seed 完成')
+    process.exit(0)
+  })
+  .catch((err) => {
+    console.error('\n❌ Seed 失败:', err)
+    process.exit(1)
+  })

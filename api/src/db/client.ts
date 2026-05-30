@@ -1,20 +1,40 @@
 // 数据库连接的"单例"
 // 整个后端共享同一个 db 实例，所有业务代码 import { db } 来用
+//
+// D12：从 better-sqlite3 切到 @libsql/client（Turso 官方客户端）
+// 好处：一套代码同时支持本地文件和 Turso 远程数据库，通过 DATABASE_URL 切换：
+//   - 本地开发：DATABASE_URL=file:./mini-crm.db
+//   - 生产 Turso：DATABASE_URL=libsql://xxx.turso.io + DATABASE_AUTH_TOKEN=xxx
+//
+// ⚠️ 副作用：libsql 是异步 API，业务代码所有 db.xxx() 都要 await
+//    better-sqlite3 时代写的同步代码（const row = db.select()...get()）全部改成
+//    const row = await db.select()...get()
 
-// 引入 Drizzle 的 better-sqlite3 适配器
-import { drizzle } from 'drizzle-orm/better-sqlite3'
+import 'dotenv/config'
 
-// 引入 better-sqlite3 驱动本体（真正打开 .db 文件的那位）
-import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/libsql'
+import { createClient } from '@libsql/client'
 
-// 把 schema 整个文件导入，传给 Drizzle，让 ORM 知道有哪些表
-// 用 * as schema 是为了把所有 export（users 等）打包成一个对象
 import * as schema from './schema'
 
-// 打开（或自动创建）SQLite 数据库文件
-// 路径 './mini-crm.db' 相对的是"跑 node 时的工作目录"，对我们来说就是 api/ 目录
-const sqlite = new Database('./mini-crm.db')
+// 校验 DATABASE_URL：必填，否则本地都跑不起来
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    'DATABASE_URL 未设置。本地开发请在 api/.env 配 DATABASE_URL=file:./mini-crm.db',
+  )
+}
+
+// 创建 libsql client
+//   url:        本地用 file:./xxx.db，远程用 libsql://xxx.turso.io
+//   authToken:  Turso 的认证 token，本地文件不需要（undefined 即可）
+const client = createClient({
+  url: process.env.DATABASE_URL,
+  authToken: process.env.DATABASE_AUTH_TOKEN,
+})
+
+// D12 临时日志：启动时打一行确认连的是谁（部署稳定后可以删）
+console.log(`[db] 已连接到 ${process.env.DATABASE_URL}`)
 
 // 用 Drizzle 包装一下，注入 schema
-// 得到一个类型安全的 db 对象——以后 db.select().from(users).all() 等等都靠它
-export const db = drizzle(sqlite, { schema })
+// 得到一个类型安全的 db 对象 —— 以后 await db.select().from(users).all() 等等都靠它
+export const db = drizzle(client, { schema })

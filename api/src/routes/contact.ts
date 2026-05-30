@@ -52,13 +52,13 @@ contact.get('/customers/:cid/contacts', permission('contact:read'), async (c) =>
   }
 
   // 先确认客户存在（不然返一个空数组会有歧义——是没联系人还是客户都不存在？）
-  const customerExists = db.select().from(customers).where(eq(customers.id, cid)).get()
+  const customerExists = await db.select().from(customers).where(eq(customers.id, cid)).get()
   if (!customerExists) {
     return c.json({ error: '客户不存在' }, 404)
   }
 
   // 取联系人，按 is_primary desc 排（主联系人排前面），再按 createdAt 倒序
-  const data = db
+  const data = await db
     .select()
     .from(contacts)
     .where(eq(contacts.customerId, cid))
@@ -77,7 +77,7 @@ contact.post('/customers/:cid/contacts', permission('contact:create'), async (c)
     return c.json({ error: '客户 id 必须是数字' }, 400)
   }
 
-  const customerExists = db.select().from(customers).where(eq(customers.id, cid)).get()
+  const customerExists = await db.select().from(customers).where(eq(customers.id, cid)).get()
   if (!customerExists) {
     return c.json({ error: '客户不存在' }, 404)
   }
@@ -89,7 +89,7 @@ contact.post('/customers/:cid/contacts', permission('contact:create'), async (c)
   }
 
   // customer_id 从 URL 取，不从 body 取（防伪造）
-  const newRow = db
+  const newRow = await db
     .insert(contacts)
     .values({
       ...parsed.data,
@@ -118,12 +118,12 @@ contact.put('/contacts/:id', permission('contact:update'), async (c) => {
     return c.json({ error: parsed.error.issues[0]?.message || '参数错误' }, 400)
   }
 
-  const existing = db.select().from(contacts).where(eq(contacts.id, id)).get()
+  const existing = await db.select().from(contacts).where(eq(contacts.id, id)).get()
   if (!existing) {
     return c.json({ error: '联系人不存在' }, 404)
   }
 
-  const updated = db
+  const updated = await db
     .update(contacts)
     .set(parsed.data)
     .where(eq(contacts.id, id))
@@ -142,12 +142,12 @@ contact.delete('/contacts/:id', permission('contact:delete'), async (c) => {
     return c.json({ error: 'id 必须是数字' }, 400)
   }
 
-  const existing = db.select().from(contacts).where(eq(contacts.id, id)).get()
+  const existing = await db.select().from(contacts).where(eq(contacts.id, id)).get()
   if (!existing) {
     return c.json({ error: '联系人不存在' }, 404)
   }
 
-  db.delete(contacts).where(eq(contacts.id, id)).run()
+  await db.delete(contacts).where(eq(contacts.id, id)).run()
   return c.json({ success: true })
 })
 

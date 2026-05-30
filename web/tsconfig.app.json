@@ -5,12 +5,11 @@
     "types": ["vite/client"],
 
     /* 路径别名：跟 vite.config.ts 的 alias 配套
-       baseUrl 是 paths 解析的基准，"." 指 tsconfig.app.json 所在目录（即 web/）
-       paths "@/*": ["src/*"] 等于"@/xx 在 TS 看来 = src/xx"
-       这样 IDE 跳转、Cmd+点击 import、类型检查才能跟上 */
-    "baseUrl": ".",
+       TS 5.0+ 起 paths 可以独立于 baseUrl 使用 —— 路径写 "./src/*" 自动相对 tsconfig 所在目录
+       D12：原本配了 baseUrl: "."，但 TS 6.0 把 baseUrl 标 deprecated，vue-tsc build 报错
+            删 baseUrl + paths 加 "./" 前缀是官方推荐的迁移方式 */
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
 
     /* Linting */

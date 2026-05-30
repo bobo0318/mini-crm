@@ -22,7 +22,7 @@ me.get('/', async (c) => {
   const role = c.get('role')
 
   // 用 userId 查数据库，拿最新的用户信息
-  const user = db.select().from(users).where(eq(users.id, payload.userId)).get()
+  const user = await db.select().from(users).where(eq(users.id, payload.userId)).get()
 
   // 极少数情况：token 还有效，但用户被管理员删了 → 返 401 让前端跳登录
   if (!user) {

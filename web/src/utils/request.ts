@@ -9,14 +9,15 @@ import router from '@/router'
 
 // 创建一个 axios 实例
 // 不用全局 axios，是为了项目专属配置（baseURL、拦截器）不污染全局
+//
+// D12：baseURL 从环境变量读
+//   - 开发（npm run dev）：VITE_API_BASE_URL=/api  → 走 Vite proxy 转发到 :3000
+//   - 生产（npm run build）：VITE_API_BASE_URL=https://your-backend.railway.app/api
+//
+// 没配 env 时兜底用 '/api'，保证本地直接 git clone 后能跑
 const request = axios.create({
-  // 所有请求都自动加上 /api 前缀
-  // 比如调 request.get('/health')，实际请求路径是 /api/health
-  // 配合 vite.config.ts 的 proxy，Vite 会把 /api/health 转发到后端 http://localhost:3000/api/health
-  baseURL: '/api',
-
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   // 超时：10 秒还没回应就自动取消
-  // 业务上有意义：用户不会傻等无限久；同时防止僵尸请求占资源
   timeout: 10000,
 })
 

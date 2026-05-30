@@ -54,7 +54,7 @@ const updateSchema = z.object({
 // 一次查 user + 关联的 role，前端拿到的数据"用户名 + 角色名"都有了，不用再调 /api/roles join
 user.get('/', permission('user:read'), async (c) => {
   // leftJoin：即使某个 user 的 role_id 是 null 也能返回（理论上不该有，但保险）
-  const rows = db
+  const rows = await db
     .select({
       id: users.id,
       email: users.email,
@@ -83,20 +83,20 @@ user.post('/', permission('user:create'), async (c) => {
   const { email, password, name, roleId } = parsed.data
 
   // email 唯一性
-  const existing = db.select().from(users).where(eq(users.email, email)).get()
+  const existing = await db.select().from(users).where(eq(users.email, email)).get()
   if (existing) {
     return c.json({ error: '该邮箱已被注册' }, 409)
   }
 
   // 角色必须存在
-  const roleExists = db.select().from(roles).where(eq(roles.id, roleId)).get()
+  const roleExists = await db.select().from(roles).where(eq(roles.id, roleId)).get()
   if (!roleExists) {
     return c.json({ error: '所选角色不存在' }, 400)
   }
 
   const passwordHash = await hashPassword(password)
 
-  const newUser = db
+  const newUser = await db
     .insert(users)
     .values({
       email,
@@ -132,7 +132,7 @@ user.put('/:id', permission('user:update'), async (c) => {
     return c.json({ error: parsed.error.issues[0]?.message || '参数错误' }, 400)
   }
 
-  const existing = db.select().from(users).where(eq(users.id, id)).get()
+  const existing = await db.select().from(users).where(eq(users.id, id)).get()
   if (!existing) {
     return c.json({ error: '用户不存在' }, 404)
   }
@@ -147,7 +147,7 @@ user.put('/:id', permission('user:update'), async (c) => {
 
   // 改 email 时检查唯一性（排除自己）
   if (parsed.data.email && parsed.data.email !== existing.email) {
-    const conflict = db
+    const conflict = await db
       .select()
       .from(users)
       .where(eq(users.email, parsed.data.email))
@@ -159,7 +159,7 @@ user.put('/:id', permission('user:update'), async (c) => {
 
   // 改 role_id 时校验角色存在
   if (parsed.data.roleId) {
-    const roleExists = db.select().from(roles).where(eq(roles.id, parsed.data.roleId)).get()
+    const roleExists = await db.select().from(roles).where(eq(roles.id, parsed.data.roleId)).get()
     if (!roleExists) {
       return c.json({ error: '所选角色不存在' }, 400)
     }
@@ -174,7 +174,7 @@ user.put('/:id', permission('user:update'), async (c) => {
     updates.passwordHash = await hashPassword(parsed.data.password)
   }
 
-  const updated = db.update(users).set(updates).where(eq(users.id, id)).returning().get()
+  const updated = await db.update(users).set(updates).where(eq(users.id, id)).returning().get()
 
   return c.json({
     id: updated.id,
@@ -198,12 +198,12 @@ user.delete('/:id', permission('user:delete'), async (c) => {
     return c.json({ error: '不能删除自己' }, 400)
   }
 
-  const existing = db.select().from(users).where(eq(users.id, id)).get()
+  const existing = await db.select().from(users).where(eq(users.id, id)).get()
   if (!existing) {
     return c.json({ error: '用户不存在' }, 404)
   }
 
-  db.delete(users).where(eq(users.id, id)).run()
+  await db.delete(users).where(eq(users.id, id)).run()
   return c.json({ success: true })
 })
 

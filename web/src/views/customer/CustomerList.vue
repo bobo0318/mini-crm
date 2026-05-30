@@ -321,12 +321,15 @@ onMounted(fetchList)
           </a-button>
 
           <!-- a-popconfirm 包在按钮外层，点按钮不直接删，先弹气泡问
-               v-auth 挂在按钮上：没权限按钮删了，popconfirm 也就没了触发器 -->
+               v-auth 挂在按钮上：没权限按钮删了，popconfirm 也就没了触发器
+               description：明确告知会级联删除关联的联系人/跟进/商机（D12 加） -->
           <a-popconfirm
-            :title="`确认删除「${(record as Customer).name}」吗？此操作不可恢复`"
+            :title="`确认删除「${(record as Customer).name}」？`"
+            description="操作不可恢复 —— 该客户名下的联系人、跟进记录、商机将一起删除"
             ok-text="确认删除"
             cancel-text="取消"
             ok-type="danger"
+            placement="topRight"
             @confirm="handleDelete(record as Customer)"
           >
             <a-button v-auth="'customer:delete'" type="link" size="small" danger>

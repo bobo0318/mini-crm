@@ -55,7 +55,7 @@ export const authMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
   // 4. D9 新增：查 user + role 一次
   //    leftJoin —— roles 表可能为空（role_id 是 nullable），但我们后面会兜底
   //    .get() 返回单行（或 undefined）
-  const row = db
+  const row = await db
     .select({
       roleId: users.roleId,
       roleName: roles.name,
