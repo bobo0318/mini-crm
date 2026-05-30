@@ -13,6 +13,7 @@ import { desc, eq, like, or, sql } from 'drizzle-orm'
 import { db } from '../db/client'
 import { customers } from '../db/schema'
 import { authMiddleware, type AuthEnv } from '../middlewares/auth'
+import { permission } from '../middlewares/permission'
 
 // 子路由：泛型 <AuthEnv> 让 c.get('user') 能拿到 JwtPayload 的类型
 const customer = new Hono<AuthEnv>()
@@ -49,7 +50,9 @@ const updateSchema = createSchema.partial()
 //
 // 返回格式（前端表格通用约定）：
 //   { data: [...], total: 42, page: 1, pageSize: 10 }
-customer.get('/', async (c) => {
+//
+// D9：permission('customer:read') 卡权限（viewer 也有 read，能进；没 read 的人接口直接 403）
+customer.get('/', permission('customer:read'), async (c) => {
   // 1. 解析 query string
   //    c.req.query('page') 拿到的是 string | undefined
   //    用 Number(...) 转成数字；|| 在前一个值为 0/NaN/'' 时也会回退到默认值，刚好我们要的就是这个
@@ -99,7 +102,7 @@ customer.get('/', async (c) => {
 // =====================================================
 // GET /api/customers/:id —— 详情
 // =====================================================
-customer.get('/:id', async (c) => {
+customer.get('/:id', permission('customer:read'), async (c) => {
   // 路径参数都是 string，要手动转 number
   const id = Number(c.req.param('id'))
 
@@ -120,7 +123,7 @@ customer.get('/:id', async (c) => {
 // =====================================================
 // POST /api/customers —— 新增
 // =====================================================
-customer.post('/', async (c) => {
+customer.post('/', permission('customer:create'), async (c) => {
   // 1. 拿请求体并 zod 校验
   const body = await c.req.json()
   const parsed = createSchema.safeParse(body)
@@ -150,7 +153,10 @@ customer.post('/', async (c) => {
 // =====================================================
 // PUT /api/customers/:id —— 编辑（部分更新）
 // =====================================================
-customer.put('/:id', async (c) => {
+// D9：
+//   - permission 卡权限码（admin / sales 有，viewer 没有）
+//   - 数据权限：sales 只能改 ownerId === 自己的客户，admin 全开
+customer.put('/:id', permission('customer:update'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) {
     return c.json({ error: 'id 必须是数字' }, 400)
@@ -168,6 +174,14 @@ customer.put('/:id', async (c) => {
     return c.json({ error: '客户不存在' }, 404)
   }
 
+  // ⭐ 数据权限：非 admin 角色，只能改自己 ownerId 的客户
+  // admin 跳过此检查（能改所有人的）
+  const role = c.get('role')
+  const { userId } = c.get('user')
+  if (role.name !== 'admin' && existing.ownerId !== userId) {
+    return c.json({ error: '只能编辑自己负责的客户' }, 403)
+  }
+
   // 更新并返回最新行
   // 注意：parsed.data 可能是个空对象（用户什么都没传），drizzle 不会报错，相当于啥也没改
   const updated = db
@@ -183,7 +197,9 @@ customer.put('/:id', async (c) => {
 // =====================================================
 // DELETE /api/customers/:id —— 删除
 // =====================================================
-customer.delete('/:id', async (c) => {
+// D9：只有 admin 有 customer:delete 权限码，sales/viewer 直接 403
+// 所以这里不用再做 ownerId 检查（admin 能删任何客户）
+customer.delete('/:id', permission('customer:delete'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) {
     return c.json({ error: 'id 必须是数字' }, 400)

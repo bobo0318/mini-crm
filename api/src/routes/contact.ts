@@ -18,6 +18,7 @@ import { desc, eq } from 'drizzle-orm'
 import { db } from '../db/client'
 import { contacts, customers } from '../db/schema'
 import { authMiddleware, type AuthEnv } from '../middlewares/auth'
+import { permission } from '../middlewares/permission'
 
 const contact = new Hono<AuthEnv>()
 
@@ -44,7 +45,7 @@ const updateSchema = createSchema.partial()
 // =====================================================
 // GET /api/customers/:cid/contacts —— 列表（某客户的所有联系人）
 // =====================================================
-contact.get('/customers/:cid/contacts', async (c) => {
+contact.get('/customers/:cid/contacts', permission('contact:read'), async (c) => {
   const cid = Number(c.req.param('cid'))
   if (isNaN(cid)) {
     return c.json({ error: '客户 id 必须是数字' }, 400)
@@ -70,7 +71,7 @@ contact.get('/customers/:cid/contacts', async (c) => {
 // =====================================================
 // POST /api/customers/:cid/contacts —— 给某客户加联系人
 // =====================================================
-contact.post('/customers/:cid/contacts', async (c) => {
+contact.post('/customers/:cid/contacts', permission('contact:create'), async (c) => {
   const cid = Number(c.req.param('cid'))
   if (isNaN(cid)) {
     return c.json({ error: '客户 id 必须是数字' }, 400)
@@ -105,7 +106,7 @@ contact.post('/customers/:cid/contacts', async (c) => {
 // =====================================================
 // 这里用扁平路径 /contacts/:id（不是 /customers/:cid/contacts/:id）
 // 因为联系人 id 全局唯一，URL 不需要再带客户 id
-contact.put('/contacts/:id', async (c) => {
+contact.put('/contacts/:id', permission('contact:update'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) {
     return c.json({ error: 'id 必须是数字' }, 400)
@@ -135,7 +136,7 @@ contact.put('/contacts/:id', async (c) => {
 // =====================================================
 // DELETE /api/contacts/:id —— 删除联系人
 // =====================================================
-contact.delete('/contacts/:id', async (c) => {
+contact.delete('/contacts/:id', permission('contact:delete'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) {
     return c.json({ error: 'id 必须是数字' }, 400)

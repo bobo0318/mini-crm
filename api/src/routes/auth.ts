@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 
 import { db } from '../db/client'
-import { users } from '../db/schema'
+import { users, roles } from '../db/schema'
 import { hashPassword, comparePassword } from '../utils/password'
 import { generateToken } from '../utils/jwt'
 
@@ -65,7 +65,16 @@ auth.post('/register', async (c) => {
   // 4. 把密码哈希一下（这里是 D3 里第一次用到 bcrypt）
   const passwordHash = await hashPassword(password)
 
-  // 5. 插入数据库
+  // 5. D9：查 sales 角色 id —— 新注册用户默认分配 sales 角色
+  //    （admin 角色不能让人自己注册就拿到，否则任何人都能注册个 admin 把系统接管）
+  //    要把人提升成 admin 得通过现有 admin 在"用户管理页"手动改
+  const salesRole = db.select().from(roles).where(eq(roles.name, 'sales')).get()
+  if (!salesRole) {
+    // 这种情况只可能是 db:seed 没跑过 —— 早返回带明确错误
+    return c.json({ error: 'sales 角色不存在，请先运行 npm run db:seed' }, 500)
+  }
+
+  // 6. 插入数据库
   //    .returning() 让 SQLite 把新插入的行返回回来（自增 id 已经填好了）
   //    .get() 拿到那一行
   const newUser = db
@@ -74,23 +83,26 @@ auth.post('/register', async (c) => {
       email,
       passwordHash,
       name: name || email.split('@')[0], // 没传 name 就用邮箱 @ 前那段
+      roleId: salesRole.id,              // D9：默认 sales 角色
     })
     .returning()
     .get()
 
-  // 6. 立刻签发 token，让用户注册完就是登录态，不用再跑一次登录
+  // 7. 签发 token
   const token = generateToken({
     userId: newUser.id,
     email: newUser.email,
   })
 
-  // 7. 返回给前端
-  //    注意：永远别把 passwordHash 返回给前端，所以这里手动挑字段
+  // 8. 返回 —— D9：除基本信息外加上 role + permissions
+  //    前端 setAuth 后立刻能渲染权限相关 UI（菜单/按钮），不用再跑 getMe
   return c.json({
     user: {
       id: newUser.id,
       email: newUser.email,
       name: newUser.name,
+      role: salesRole.name,
+      permissions: salesRole.permissions,
     },
     token,
   })
@@ -123,6 +135,18 @@ auth.post('/login', async (c) => {
     return c.json({ error: '邮箱或密码错误' }, 401)
   }
 
+  // D9：查用户的角色 + 权限
+  // user.roleId 理论上不会是 null（seed 给老用户补过，register 默认给 sales），
+  // 但保险起见做兜底
+  let role: { name: string; permissions: string[] } | null = null
+  if (user.roleId) {
+    const r = db.select().from(roles).where(eq(roles.id, user.roleId)).get()
+    if (r) role = { name: r.name, permissions: r.permissions as string[] }
+  }
+  if (!role) {
+    return c.json({ error: '用户角色信息缺失，请联系管理员' }, 500)
+  }
+
   // 密码对上了，签发 token
   const token = generateToken({
     userId: user.id,
@@ -134,6 +158,8 @@ auth.post('/login', async (c) => {
       id: user.id,
       email: user.email,
       name: user.name,
+      role: role.name,
+      permissions: role.permissions,
     },
     token,
   })

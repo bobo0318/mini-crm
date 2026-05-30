@@ -83,7 +83,7 @@ async function handleDelete(record: Contact) {
   <div>
     <!-- 顶部操作栏 -->
     <div class="toolbar">
-      <a-button type="primary" @click="handleCreate">
+      <a-button v-auth="'contact:create'" type="primary" @click="handleCreate">
         <template #icon><PlusOutlined /></template>
         新增联系人
       </a-button>
@@ -111,7 +111,7 @@ async function handleDelete(record: Contact) {
 
         <!-- 操作列 -->
         <template v-else-if="column.key === 'action'">
-          <a-button type="link" size="small" @click="handleEdit(record as Contact)">
+          <a-button v-auth="'contact:update'" type="link" size="small" @click="handleEdit(record as Contact)">
             编辑
           </a-button>
           <a-popconfirm
@@ -121,7 +121,7 @@ async function handleDelete(record: Contact) {
             ok-type="danger"
             @confirm="handleDelete(record as Contact)"
           >
-            <a-button type="link" size="small" danger>删除</a-button>
+            <a-button v-auth="'contact:delete'" type="link" size="small" danger>删除</a-button>
           </a-popconfirm>
         </template>
 

@@ -17,10 +17,9 @@ const me = new Hono<AuthEnv>()
 me.use('*', authMiddleware)
 
 me.get('/', async (c) => {
-  // 中间件里塞进去的 payload，这里取出来
-  // 注意 payload 里只有 userId/email/iat/exp 这些"轻量信息"，
-  // 想拿用户最新的 name、avatar 还是得查一遍数据库
+  // 中间件里塞进去的两份数据：JWT 解码的 user + db 查到的 role
   const payload = c.get('user')
+  const role = c.get('role')
 
   // 用 userId 查数据库，拿最新的用户信息
   const user = db.select().from(users).where(eq(users.id, payload.userId)).get()
@@ -30,11 +29,14 @@ me.get('/', async (c) => {
     return c.json({ error: '用户不存在' }, 401)
   }
 
-  // 跟登录接口一样：永远不返回 passwordHash
+  // D9：除了基本信息，把当前角色 + 权限码列表也返给前端
+  // 前端会拿 permissions 给 v-auth 指令做按钮级权限判断
   return c.json({
     id: user.id,
     email: user.email,
     name: user.name,
+    role: role.name,               // 'admin' | 'sales' | 'viewer'
+    permissions: role.permissions, // 权限码数组
   })
 })
 

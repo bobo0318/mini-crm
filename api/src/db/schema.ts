@@ -6,6 +6,32 @@
 // real = SQLite 的浮点数类型，用来存金额（amount）
 import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core'
 
+// =====================================================
+// 定义 roles 表（角色表）—— D9 新增
+// =====================================================
+// 业务含义：RBAC 模型的角色实体。本项目内置 3 个角色：admin / sales / viewer
+// 每个角色携带一个权限码数组（permissions），格式 'resource:action'，如 'customer:delete'
+//
+// 放在 users 之前是因为：users.role_id 要 references(roles.id)，TS 编译时要求 roles 标识符已声明
+export const roles = sqliteTable('roles', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+
+  // 角色 code：'admin' | 'sales' | 'viewer'，唯一
+  // TS 类型用字面量约束，业务里 role.name 直接是窄类型
+  name: text('name').$type<'admin' | 'sales' | 'viewer'>().notNull().unique(),
+
+  // 中文描述：'管理员' / '销售' / '只读'，给前端展示用
+  description: text('description').notNull(),
+
+  // 权限码列表：JSON 数组，比如 ['customer:read', 'customer:delete', ...]
+  // mode: 'json' 让 Drizzle 自动 stringify / parse
+  permissions: text('permissions', { mode: 'json' }).$type<string[]>().notNull(),
+
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+})
+
 // 定义 users 表
 // sqliteTable(表名, { 列名: 列定义 })
 export const users = sqliteTable('users', {
@@ -21,6 +47,13 @@ export const users = sqliteTable('users', {
 
   // 用户名：可空（注册时可能没填）
   name: text('name'),
+
+  // 角色外键（D9 新增）
+  // 设计上写 nullable：
+  //   - SQLite ALTER TABLE 加 NOT NULL 列容易出问题（需要 DEFAULT 而 DEFAULT 又必须是常量）
+  //   - 业务上靠 register 接口和 seed 脚本保证：所有 user 必有 role_id
+  // 注意 references(() => roles.id) 是延迟引用，roles 定义在文件下方也能正常解析
+  roleId: integer('role_id').references(() => roles.id),
 
   // 创建时间：用 integer 存 Unix 时间戳，mode: 'timestamp' 告诉 Drizzle 这是 Date 类型
   // $defaultFn = 插入时如果没传，运行时自动用这个函数生成默认值

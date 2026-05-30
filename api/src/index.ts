@@ -18,6 +18,8 @@ import customerRoutes from './routes/customer'
 import contactRoutes from './routes/contact'
 import followUpRoutes from './routes/followUp'
 import dealRoutes from './routes/deal'
+import roleRoutes from './routes/role'
+import userRoutes from './routes/user'
 
 const app = new Hono()
 
@@ -82,6 +84,12 @@ app.route('/api', followUpRoutes)
 
 // 销售商机：GET/POST/PUT/DELETE /api/deals
 app.route('/api/deals', dealRoutes)
+
+// 角色管理（D9）：GET /api/roles
+app.route('/api/roles', roleRoutes)
+
+// 用户管理（D9）：GET/POST/PUT/DELETE /api/users
+app.route('/api/users', userRoutes)
 
 // =====================================================
 // 启动 HTTP server

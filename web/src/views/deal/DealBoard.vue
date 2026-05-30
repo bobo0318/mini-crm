@@ -188,7 +188,8 @@ function formatAmount(amount: number | null): string {
     <!-- 顶部操作栏 -->
     <div class="board-header">
       <h2>销售漏斗</h2>
-      <a-button type="primary" @click="handleCreate">新建商机</a-button>
+      <!-- D9：viewer 看不到新建按钮 -->
+      <a-button v-auth="'deal:create'" type="primary" @click="handleCreate">新建商机</a-button>
     </div>
 
     <!-- 4 列看板 -->

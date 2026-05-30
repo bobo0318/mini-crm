@@ -7,11 +7,14 @@ import { ref, computed } from 'vue'
 // =====================================================
 // 用户信息类型
 // 跟后端 /api/auth/login、/api/me 返回的 user 字段对齐
+// D9 新增 role + permissions
 // =====================================================
 export interface UserInfo {
   id: number
   email: string
   name: string | null
+  role: 'admin' | 'sales' | 'viewer'
+  permissions: string[]
 }
 
 // =====================================================
@@ -76,6 +79,22 @@ export const useUserStore = defineStore(
       userInfo.value = user
     }
 
+    /**
+     * 权限检查工具（D9）
+     * @param perm  权限码（string）或权限码列表（string[]）
+     * @returns 任一权限码命中即 true（OR 关系，跟后端中间件一致）
+     *
+     * 用途：
+     *   - v-auth 自定义指令内部调它
+     *   - 组件里手动判断也能用（比如计算属性算可见按钮）
+     *   - 路由守卫调它
+     */
+    function hasPermission(perm: string | string[]): boolean {
+      if (!userInfo.value) return false
+      const required = Array.isArray(perm) ? perm : [perm]
+      return required.some((p) => userInfo.value!.permissions.includes(p))
+    }
+
     // ---------- 暴露给外部 ----------
     // 组合式写法必须显式 return；没 return 的就是 store 私有
     return {
@@ -87,6 +106,7 @@ export const useUserStore = defineStore(
       logout,
       setUserInfo,
       setInitialized,
+      hasPermission,
     }
   },
   {

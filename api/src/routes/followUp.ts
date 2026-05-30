@@ -14,6 +14,7 @@ import { desc, eq } from 'drizzle-orm'
 import { db } from '../db/client'
 import { customers, followUps } from '../db/schema'
 import { authMiddleware, type AuthEnv } from '../middlewares/auth'
+import { permission } from '../middlewares/permission'
 
 const followUp = new Hono<AuthEnv>()
 
@@ -37,7 +38,7 @@ const createSchema = z.object({
 // =====================================================
 // GET /api/customers/:cid/follow-ups —— 列表
 // =====================================================
-followUp.get('/customers/:cid/follow-ups', async (c) => {
+followUp.get('/customers/:cid/follow-ups', permission('followUp:read'), async (c) => {
   const cid = Number(c.req.param('cid'))
   if (isNaN(cid)) {
     return c.json({ error: '客户 id 必须是数字' }, 400)
@@ -63,7 +64,7 @@ followUp.get('/customers/:cid/follow-ups', async (c) => {
 // =====================================================
 // POST /api/customers/:cid/follow-ups —— 新增跟进记录
 // =====================================================
-followUp.post('/customers/:cid/follow-ups', async (c) => {
+followUp.post('/customers/:cid/follow-ups', permission('followUp:create'), async (c) => {
   const cid = Number(c.req.param('cid'))
   if (isNaN(cid)) {
     return c.json({ error: '客户 id 必须是数字' }, 400)

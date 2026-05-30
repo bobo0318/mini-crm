@@ -56,7 +56,7 @@ function handleModalSuccess() {
   <div>
     <!-- 顶部操作栏 -->
     <div class="toolbar">
-      <a-button type="primary" @click="handleCreate">
+      <a-button v-auth="'followUp:create'" type="primary" @click="handleCreate">
         <template #icon><PlusOutlined /></template>
         新增跟进
       </a-button>

@@ -1,12 +1,15 @@
 // 路由守卫
 // 接受 router 作为参数（依赖注入），避免直接 import 'router/index'（循环依赖）
 //
-// 当前只有一个 beforeEach 守卫，D9 加权限三级控制时会在这里继续加：
-//   - meta.roles 权限校验
-//   - 动态菜单计算
-//   - 等等
+// D9 起守卫做三件事：
+//   1. public 路由放行（已登录用户访问 /login 踢回 dashboard）
+//   2. 受保护路由：没 token 跳登录；token 但本会话没验证过就 getMe 验签
+//   3. ⭐ 权限检查：meta.permission 不为空时，检查当前用户权限码
+//
+// 三个判断顺序很重要：先验登录态再验权限，反过来没意义
 
 import type { Router } from 'vue-router'
+import { message } from 'ant-design-vue'
 
 import { useUserStore } from '@/stores/user'
 import { getMe } from '@/api/auth'
@@ -54,7 +57,19 @@ export function setupRouterGuards(router: Router) {
       }
     }
 
-    //   2c. 一切就绪，放行
+    // 情况 3：权限检查（D9）
+    //   到这里 userInfo + permissions 一定有了（2b 已 getMe 拉到）
+    //   meta.permission 不为空时校验；为空表示"已登录即可"
+    if (to.meta.permission) {
+      if (!userStore.hasPermission(to.meta.permission)) {
+        // 没权限：弹提示 + 不跳过去（留在原页 / 跳工作台）
+        // 这里选择跳 dashboard，避免"原页"是另一个无权限页造成循环
+        message.warning('权限不足，无法访问该页面')
+        return '/dashboard'
+      }
+    }
+
+    // 情况 4：一切就绪，放行
     return true
   })
 }

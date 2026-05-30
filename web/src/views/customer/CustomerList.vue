@@ -238,12 +238,13 @@ onMounted(fetchList)
       />
 
       <!-- 右侧：操作按钮组 -->
+      <!-- D9：用 v-auth 卡按钮权限；viewer 看不到新增/导出，刷新所有人都能用 -->
       <a-space>
-        <a-button type="primary" @click="handleCreate">
+        <a-button v-auth="'customer:create'" type="primary" @click="handleCreate">
           <template #icon><PlusOutlined /></template>
           新增客户
         </a-button>
-        <a-button :loading="exporting" @click="handleExport">
+        <a-button v-auth="'export:excel'" :loading="exporting" @click="handleExport">
           <template #icon><DownloadOutlined /></template>
           导出
         </a-button>
@@ -306,14 +307,21 @@ onMounted(fetchList)
         </template>
 
         <!-- 操作列：编辑 + 删除 -->
+        <!-- D9：v-auth 卡按钮权限
+             - 编辑按钮：admin/sales 可见（viewer 隐藏）；sales 点别人的客户会被后端 ownerId 拦
+             - 删除按钮：只 admin 可见 -->
         <template v-else-if="column.key === 'action'">
-          <a-button type="link" size="small" @click="handleEdit(record as Customer)">
+          <a-button
+            v-auth="'customer:update'"
+            type="link"
+            size="small"
+            @click="handleEdit(record as Customer)"
+          >
             编辑
           </a-button>
 
-          <!-- a-popconfirm 包在按钮外层，点按钮不直接删，先弹气泡问 -->
-          <!-- @confirm 是用户点"确定"后才触发 -->
-          <!-- ok-type="danger" 让确定按钮也变红，强化"危险操作"语义 -->
+          <!-- a-popconfirm 包在按钮外层，点按钮不直接删，先弹气泡问
+               v-auth 挂在按钮上：没权限按钮删了，popconfirm 也就没了触发器 -->
           <a-popconfirm
             :title="`确认删除「${(record as Customer).name}」吗？此操作不可恢复`"
             ok-text="确认删除"
@@ -321,7 +329,7 @@ onMounted(fetchList)
             ok-type="danger"
             @confirm="handleDelete(record as Customer)"
           >
-            <a-button type="link" size="small" danger>
+            <a-button v-auth="'customer:delete'" type="link" size="small" danger>
               删除
             </a-button>
           </a-popconfirm>

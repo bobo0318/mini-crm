@@ -8,9 +8,23 @@
 //     /customer/list             客户列表
 //     /customer/:id              客户详情（D6 新增）
 //     /deal/board                销售漏斗看板（D7 新增）
+//     /system/role               角色管理（D9 新增，admin only）
+//     /system/user               用户管理（D9 新增，admin only）
 //     /home /about               D1 测试页
 
 import type { RouteRecordRaw } from 'vue-router'
+
+// 扩展 vue-router 的 RouteMeta 类型
+// 这样 routes 里写 meta.public / meta.permission 时 TS 有补全和类型校验
+// declare module 是给已有模块"打补丁"加类型，不是定义新模块
+declare module 'vue-router' {
+  interface RouteMeta {
+    /** 公共页面（不要求登录），如 /login */
+    public?: boolean
+    /** 访问此路由需要的权限码（D9）；缺省 = 已登录即可，无额外要求 */
+    permission?: string | string[]
+  }
+}
 
 export const routes: RouteRecordRaw[] = [
   // 登录页：独立于 Layout，不带侧栏
@@ -54,6 +68,21 @@ export const routes: RouteRecordRaw[] = [
         path: 'deal/board',
         name: 'DealBoard',
         component: () => import('../views/deal/DealBoard.vue'),
+      },
+
+      // 系统管理（D9 新增，admin only —— meta.permission 让路由守卫拦截非 admin）
+      // Phase 3 会把这俩占位页换成真页面
+      {
+        path: 'system/role',
+        name: 'SystemRole',
+        meta: { permission: 'role:read' },
+        component: () => import('../views/system/RoleList.vue'),
+      },
+      {
+        path: 'system/user',
+        name: 'SystemUser',
+        meta: { permission: 'user:read' },
+        component: () => import('../views/system/UserList.vue'),
       },
 
       // D1 时建的测试页

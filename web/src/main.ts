@@ -23,6 +23,9 @@ import './style.css'
 // ⑥ 根组件
 import App from './App.vue'
 
+// ⑦ 自定义指令（D9）
+import { vAuth } from './directives/auth'
+
 // =====================================================
 // 创建 Vue 应用实例
 // =====================================================
@@ -42,4 +45,5 @@ app
   .use(pinia)   // 注册 Pinia，从此所有组件能用 useXxxStore()
   .use(router)  // 注册 Vue Router，从此 <router-view> 和 <router-link> 生效
   .use(Antd)    // 注册 Ant Design Vue，从此 <a-button> 等组件全局可用
+  .directive('auth', vAuth)  // 注册 v-auth 自定义指令（D9 按钮级权限）
   .mount('#app') // 挂载到 index.html 里那个 <div id="app">

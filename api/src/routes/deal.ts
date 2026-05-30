@@ -18,6 +18,7 @@ import { desc, eq, ne } from 'drizzle-orm'
 import { db } from '../db/client'
 import { deals } from '../db/schema'
 import { authMiddleware, type AuthEnv } from '../middlewares/auth'
+import { permission } from '../middlewares/permission'
 
 const deal = new Hono<AuthEnv>()
 
@@ -61,7 +62,7 @@ const updateSchema = createSchema.partial()
 //
 // 返回格式：{ data: Deal[] }
 // 不分页：看板要一次看到所有卡片才能拖拽
-deal.get('/', async (c) => {
+deal.get('/', permission('deal:read'), async (c) => {
   const stage = c.req.query('stage')?.trim()
 
   // 三种 where 情况：
@@ -92,7 +93,7 @@ deal.get('/', async (c) => {
 // =====================================================
 // GET /api/deals/:id —— 详情
 // =====================================================
-deal.get('/:id', async (c) => {
+deal.get('/:id', permission('deal:read'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) {
     return c.json({ error: 'id 必须是数字' }, 400)
@@ -109,7 +110,7 @@ deal.get('/:id', async (c) => {
 // =====================================================
 // POST /api/deals —— 新增
 // =====================================================
-deal.post('/', async (c) => {
+deal.post('/', permission('deal:create'), async (c) => {
   const body = await c.req.json()
   const parsed = createSchema.safeParse(body)
   if (!parsed.success) {
@@ -137,7 +138,8 @@ deal.post('/', async (c) => {
 // =====================================================
 // 拖拽看板改 stage 也走这个接口，前端只传 { stage: 'xxx' }
 // "标记丢失" 同理：前端传 { stage: 'lost' }
-deal.put('/:id', async (c) => {
+// D9：sales 只能改自己 ownerId 的商机；admin 全开
+deal.put('/:id', permission('deal:update'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) {
     return c.json({ error: 'id 必须是数字' }, 400)
@@ -154,6 +156,14 @@ deal.put('/:id', async (c) => {
     return c.json({ error: '商机不存在' }, 404)
   }
 
+  // ⭐ 数据权限：非 admin 只能改自己的商机
+  // 影响范围：拖拽改 stage、标记丢失、弹窗编辑——sales 拖别人的商机会被这里挡住
+  const role = c.get('role')
+  const { userId } = c.get('user')
+  if (role.name !== 'admin' && existing.ownerId !== userId) {
+    return c.json({ error: '只能编辑自己负责的商机' }, 403)
+  }
+
   const updated = db
     .update(deals)
     .set(parsed.data)
@@ -167,7 +177,8 @@ deal.put('/:id', async (c) => {
 // =====================================================
 // DELETE /api/deals/:id —— 删除
 // =====================================================
-deal.delete('/:id', async (c) => {
+// D9：只有 admin 有 deal:delete，sales/viewer 直接 403
+deal.delete('/:id', permission('deal:delete'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) {
     return c.json({ error: 'id 必须是数字' }, 400)

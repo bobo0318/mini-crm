@@ -7,12 +7,13 @@
 //   - 路由表里把 Dashboard / CustomerList 等作为它的 children
 //   - 子路由的 component 就会被渲染到 <router-view /> 的位置
 
-import { computed, ref } from 'vue'
+import { computed, ref, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   DashboardOutlined,
   TeamOutlined,
   FundOutlined,
+  SettingOutlined,
   LogoutOutlined,
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
@@ -24,17 +25,62 @@ const router = useRouter()
 const userStore = useUserStore()
 
 // =====================================================
-// 侧栏菜单数据
+// 侧栏菜单数据（D9 加 permission 字段做权限过滤）
 // =====================================================
-// key：用 path 做 key，方便和当前路由 path 对应（高亮联动）
-// label：菜单显示文字
-// icon：菜单图标（Ant Design 图标组件）
-// 后续 D6/D7/D8/D9 会陆续加联系人、销售漏斗、团队等菜单项
-const menuItems = [
+// 字段说明：
+//   key        —— 用 path 做 key，方便和当前路由 path 对应（高亮联动）
+//   label      —— 菜单显示文字
+//   icon       —— 菜单图标
+//   permission —— 看到这一项需要的权限码（缺省 = 所有登录用户都能看，如工作台）
+//   children   —— 子菜单（D9 系统管理用，admin 才看得到）
+//
+// 实际渲染走 computed visibleMenuItems：按当前用户权限过滤
+type MenuItem = {
+  key: string
+  label: string
+  icon: Component
+  permission?: string
+  children?: MenuItem[]
+}
+
+const allMenuItems: MenuItem[] = [
   { key: '/dashboard', label: '工作台', icon: DashboardOutlined },
-  { key: '/customer/list', label: '客户管理', icon: TeamOutlined },
-  { key: '/deal/board', label: '销售漏斗', icon: FundOutlined },
+  { key: '/customer/list', label: '客户管理', icon: TeamOutlined, permission: 'customer:read' },
+  { key: '/deal/board', label: '销售漏斗', icon: FundOutlined, permission: 'deal:read' },
+  {
+    key: '/system',
+    label: '系统管理',
+    icon: SettingOutlined,
+    permission: 'role:read',  // admin 才有这个权限
+    children: [
+      { key: '/system/role', label: '角色管理', icon: SettingOutlined, permission: 'role:read' },
+      { key: '/system/user', label: '用户管理', icon: TeamOutlined, permission: 'user:read' },
+    ],
+  },
 ]
+
+// 派生：当前用户能看到的菜单（递归处理 children）
+// 思路：
+//   - permission 为空 → 任何人可见
+//   - permission 有值 → 检查权限，没权限整条隐藏
+//   - 有 children → 先过滤 children；children 过滤后空了 → 父菜单也隐藏
+function filterByPermission(items: MenuItem[]): MenuItem[] {
+  return items
+    .map((item) => {
+      // permission 检查
+      if (item.permission && !userStore.hasPermission(item.permission)) return null
+      // 递归处理 children
+      if (item.children) {
+        const filteredChildren = filterByPermission(item.children)
+        if (filteredChildren.length === 0) return null
+        return { ...item, children: filteredChildren }
+      }
+      return item
+    })
+    .filter((x): x is MenuItem => x !== null)
+}
+
+const visibleMenuItems = computed(() => filterByPermission(allMenuItems))
 
 // =====================================================
 // 当前选中的菜单项（高亮联动）
@@ -95,11 +141,25 @@ function handleLogout() {
         theme="dark"
         @click="handleMenuClick"
       >
-        <a-menu-item v-for="item in menuItems" :key="item.key">
-          <!-- component :is 是 Vue 的动态组件语法：把 item.icon 这个组件当成标签来渲染 -->
-          <component :is="item.icon" />
-          <span>{{ item.label }}</span>
-        </a-menu-item>
+        <!-- D9：用 visibleMenuItems（按权限过滤后） -->
+        <!-- 有 children → 渲染 a-sub-menu（可展开的折叠菜单）；否则 a-menu-item -->
+        <template v-for="item in visibleMenuItems" :key="item.key">
+          <a-sub-menu v-if="item.children" :key="item.key">
+            <template #title>
+              <component :is="item.icon" />
+              <span>{{ item.label }}</span>
+            </template>
+            <a-menu-item v-for="child in item.children" :key="child.key">
+              <component :is="child.icon" />
+              <span>{{ child.label }}</span>
+            </a-menu-item>
+          </a-sub-menu>
+          <a-menu-item v-else :key="item.key">
+            <!-- component :is 是 Vue 的动态组件语法：把 item.icon 这个组件当成标签来渲染 -->
+            <component :is="item.icon" />
+            <span>{{ item.label }}</span>
+          </a-menu-item>
+        </template>
       </a-menu>
     </a-layout-sider>
 
