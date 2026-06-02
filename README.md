@@ -6,6 +6,10 @@
 [![后端 API](https://img.shields.io/badge/API-mini--crm--api--mr3b.onrender.com-green?style=flat-square&logo=render)](https://mini-crm-api-mr3b.onrender.com/api/health)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](#)
 
+<p align="center">
+  <img src="docs/demo.gif" alt="Mini CRM 演示" width="800" />
+</p>
+
 ## 🌐 在线体验
 
 - **线上地址**：https://mini-crm-seven-steel.vercel.app
