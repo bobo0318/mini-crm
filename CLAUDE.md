@@ -41,7 +41,7 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 [x] D9 - 权限三级控制
 [x] D10 - 工作台仪表盘
 [x] D11 - i18n + 暗黑模式
-[ ] D12 - 部署上线 + README
+[x] D12 - 部署上线 + README
 ```
 
 > 完成每个阶段后，**在这里把对应行的 [ ] 改为 [x]**，并在下面"最近进展"加一行简短记录。
@@ -61,6 +61,7 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 - 2026-05-30：D9 完成 —— 权限三级控制（RBAC）。**数据层**：roles 表（id/name/description/permissions JSON，内置 admin/sales/viewer 三个）+ users 加 roleId 外键；db/seed.ts 种子脚本（幂等）一次性塞角色 + 给老 users 补 admin，加 `npm run db:seed`。**权限码设计**：格式 `resource:action`（如 customer:delete / export:excel / role:read），21 个权限码集中在 seed.ts 定义；admin 全集、sales 减 delete + 减 user/role 管理、viewer 只 read。**后端权限**：(1) authMiddleware 增强 —— 解 JWT 后 leftJoin roles 一次查到 role + permissions 挂 c.get('role')；(2) permission(perm) 工厂中间件，401/403 区分（未登录 vs 权限不足）；(3) 每个受保护接口前挂 permission('customer:delete') 这类；(4) ⭐ **数据权限**：customer/deal 的 update 接口在 permission 之外额外检查 ownerId（admin 全开，sales 必须 existing.ownerId === userId），权限码 + 数据规则双层防御。**前端权限**：(1) UserInfo 加 role+permissions（持久化）+ hasPermission(perm) store 方法；(2) **v-auth 自定义指令**（directives/auth.ts）：mounted 时检查 store.hasPermission，没权限 `el.parentNode.removeChild(el)` 把 DOM 整个移除（比 display:none 彻底）；(3) RouteMeta 加 permission 字段 + 守卫拦截非匹配角色（弹消息 + 跳 dashboard）；(4) MainLayout 菜单按 permission 递归过滤（children 全过滤空 → 父菜单也隐藏）。**注册接口默认 sales 角色** —— 防止任何人注册即拿到 admin。**login/register 接口同步返回 role+permissions** —— 一致 UserInfo 结构，前端登录后 v-auth 立刻可用，不用再调 getMe。**业务页**：角色管理（只读，按 resource 分组展示权限码，配 a-alert 说明"内置不可编辑"）+ 用户管理（CRUD + 改角色 + 密码留空=不改）。**⭐ 自锁防御 2 条**：(1) 不能删自己（自己那行不显示删除按钮 + 后端 DELETE /:id 拦截 id === userId）；(2) 不能改自己的角色（编辑自己时角色 Select disabled + label 提示 + 后端 PUT 拦截 id === userId && roleId 字段在 body）—— 防 admin 把自己改 viewer 后再也回不来。⚠️ 中途踩坑 1 个：drizzle 的 `references(() => roles.id)` 虽然运行时延迟引用，但 TS 编译时仍要求 roles 标识符已声明，所以 schema.ts 里 roles 表必须定义在 users 之前。
 - 2026-05-30：D10 完成 —— 工作台仪表盘。**后端**：4 个 stats 接口（/api/stats/overview, /customer-trend, /deal-funnel, /sales-rank），用 drizzle 的 sql\`\` 模板写聚合查询（count/sum/group by/date(...)）；⭐ **角色差异化数据**：抽 ownerFilter(role, userId, column) 工具函数 —— sales 角色返回 `eq(列, userId)` 限自己，admin/viewer 返回 undefined 等于不加 where（drizzle 的 where(undefined) 自动忽略），权限码不变但 SQL 维度按角色变。指标设计：总客户数 / 本月新增 / 进行中商机（stage 非 won/lost）/ ⭐ **加权预期金额** = sum(amount × probability / 100) 仅未结束商机 —— 销售管线常用指标，给 D10 留的 probability 字段在 D7 就埋好了。SQLite 的 `date(created_at, 'unixepoch')` 把 unix 时间戳列按天分组（mode:'timestamp' 存的是秒数）。**前端**：(1) **useChart composable**（composables/useChart.ts）封装 ECharts 生命周期 —— onMounted echarts.init、暴露 setOption、window resize 监听 + onBeforeUnmount 移除监听 + dispose，⭐ ECharts 实例用 **shallowRef** 不用 ref（ECharts 内部对象巨大，深度响应式会严重拖性能）；(2) Dashboard.vue 重写：4 个 a-statistic 卡片 + 3 张图（折线/漏斗/横柱）；(3) ⭐ **Promise.all** 并发拉 4 接口（比串行快 4 倍，F12 Network 能看到 4 个请求同时发出）。**图表细节**：漏斗图 sort='none' 保留后端固定顺序（默认 descending 会按数量重排导致 lead=0 排到底层，漏斗倒过来）；横柱图 reverse 让金额高的在最上面（ECharts 横柱默认从下往上画）；折线图 minInterval:1 防 y 轴出现小数刻度。**ECharts 引入**：用全量 `import * as echarts from 'echarts'`，生产环境推荐按需引入（echarts/core + 单独 import 用到的组件），bundle 能减 60%+，D10 先不优化。
 - 2026-05-30：D11 完成 —— i18n 中英双语 + 暗黑模式（范围取舍：i18n 只做框架 + 顶栏/菜单/登录页，业务页中文不抽）。**i18n**：vue-i18n 11.x，locales/ 拆 zh-CN.ts / en.ts / index.ts（嵌套结构 common/layout/menu/login）；createI18n 用 legacy:false + globalInjection:true（Composition API + 模板 $t 全局）；默认 locale 从 localStorage 直读（i18n 创建时 Pinia 还没 hydrate）。**settings store**：locale + theme 两件事，persistedstate 持久化；提供 toggleLocale / toggleTheme 工具方法。**联动**：(1) App.vue 用 a-config-provider 包 router-view，把 settings.locale 映射 AD Vue 自带 zhCN/enUS locale（让"上一页/下一页"等内置文案跟着切），(2) MainLayout/Login 各自 watch settings.locale → i18nLocale.value 同步，(3) Login 校验 rules 用 computed 包让红字校验信息也跟着 locale 变。**暗黑模式**：用 AD Vue 4 内置 `theme.darkAlgorithm`（一行配置整套组件库变暗），手写 div 的背景/文字色用 `theme.useToken()` 拿到 token 绑 inline style（MainLayout 顶栏/内容区/user-trigger；Login 卡片+背景；DealBoard 列 colorFillSecondary + 卡片 colorBgContainer；CustomerDetail.tabs；FollowUpTimeline.content）—— token 是 reactive ref，主题切了 inline style 自动变。**第三方组件主题**：md-editor-v3 MdEditor / MdPreview 都接受 :theme prop，绑 settings.theme 让编辑器跟着切。**全局 webkit autofill 修复**：style.css 加 `html.theme-dark` 类切换 + `input:-webkit-autofill` 用 `-webkit-box-shadow inset` hack 强制覆盖 Chrome 自动填充背景（autofill 优先级超高，普通 background-color 改不掉）。**新增用户表单防 autofill**：邮箱 autocomplete="off" + 密码 autocomplete="new-password"。⚠️ **中途踩坑 1 个大的**：vue-i18n 11.x + Vite 8 报 "init_runtime_dom_esm_bundler is not defined" —— vue-i18n 11.x 默认入口被 Vite esbuild 处理后 init helper 被错位 hoist；fix：vite.config.ts 加 `optimizeDeps.exclude: [vue-i18n]`（不预构建走原生 ESM）+ `resolve.dedupe: [vue]`（强制单一 vue runtime 实例）。
+- 2026-06-02：D12 完成 —— 部署上线 + README。**后端切 libsql**：原 better-sqlite3 是 Node 原生模块（部署到 Render/Vercel serverless 容易 native binding 报错），换成 @libsql/client + drizzle-orm/libsql 适配层 —— ⭐ **同一份代码本地走 `file:./mini-crm.db` 协议、生产走 `libsql://xxx.turso.io` 协议**，靠 DATABASE_URL 环境变量切。**环境变量全收口**：JWT_SECRET / DATABASE_URL / DATABASE_AUTH_TOKEN / PORT 全走 .env，前端 VITE_API_BASE_URL 区分 .env.development（留空走 Vite proxy）和 .env.production（贴 Render 后端 URL），.env.example 留模板。**部署**：(1) 前端 Vercel —— vercel.json 配 SPA fallback `{"rewrites":[{"source":"/(.*)","destination":"/"}]}`，⚠️ **不加这个 F5 子路由会 404**（SPA 路由是前端 JS 处理的，服务器找不到对应文件就 404，必须全部 rewrite 到 index.html 交还给 vue-router），自动监听 main 分支 push 触发部署；(2) 后端 Render free tier —— 15 分钟无访问休眠，首次冷启动 30-50 秒（README 写明提示）；(3) 数据库 Turso —— 云上 SQLite，免费 500MB 够 demo。**README.md** 199 行：3 个徽章（Demo / API / License）+ 在线体验账号 + 9 项核心功能表 + 前后端技术栈表 + 本地启动步骤 + 项目结构 + ⭐ **8 条简历亮点**（JWT 闭环 / BasicForm Schema 驱动 / 看板乐观更新 / 三级权限 + 数据权限 / 自锁防御 / useChart + shallowRef / 暗黑模式不维护两套 CSS / libsql 一套代码本地+云端通用）+ D0-D12 学习路径 + License。**test.http D12 演示数据脚本**：5 客户 / 8 联系人 / 6 跟进 / 8 商机一键造完，⭐ 用 REST Client 的 `# @name custByte` 让每个客户响应被命名捕获，后续 contacts / followUps / deals 直接引用 `{{custByte.response.body.id}}` —— 不用手填 customerId，从 ③ 登录开始按顺序点 Send Request 即可。⚠️ 中途踩坑：REST Client 的 Send Request 链接靠 `###` 切块，节标题前漏 ### 会被并入上一块，"客户 1-5 / 字节联系人 1 / 字节跟进 1 / lead 商机 1" 共 8 处都漏了，已统一补上。
 
 ---
 
@@ -72,11 +73,11 @@ Vue 3 + Vite + TypeScript + `<script setup>` + 组合式 API
 + Vue Router 4 + axios + ECharts + vuedraggable + md-editor-v3 + vue-i18n
 
 ### 后端 `api/`
-Hono + @hono/node-server + Drizzle ORM + better-sqlite3
+Hono + @hono/node-server + Drizzle ORM + @libsql/client（本地 file: / 生产 Turso 同套代码）
 + jsonwebtoken + bcryptjs + zod
 
-### 部署（D12 再用）
-前端 Vercel + 后端 Railway + 数据库 Turso（云上 SQLite）
+### 部署
+前端 Vercel + 后端 Render + 数据库 Turso（云上 SQLite）
 
 ---
 
@@ -86,7 +87,7 @@ Hono + @hono/node-server + Drizzle ORM + better-sqlite3
 mini-crm/
 ├── PROJECT_PLAN.md       ← 完整项目计划与学习手册
 ├── CLAUDE.md             ← 本文件
-├── README.md             ← D12 才写
+├── README.md             ← 项目介绍（D12 写完）
 ├── web/                  ← 前端
 └── api/                  ← 后端
 ```

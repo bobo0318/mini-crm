@@ -320,8 +320,9 @@ mini-crm/
 - 主题方案：基于 CSS 变量实现暗黑模式切换，无闪屏
 
 ### 完成 D12 后能加
-- 项目部署：前端 Vercel + 后端 Railway，CI 自动构建发布；提供在线 demo
-- 在线访问：[https://你的项目.vercel.app](#)
+- 项目部署：前端 Vercel + 后端 Render + 数据库 Turso（云上 SQLite），监听 main 分支 push 自动构建发布；提供在线 demo
+- 在线访问：[https://mini-crm-seven-steel.vercel.app](https://mini-crm-seven-steel.vercel.app)
+- 跨环境兼容：后端用 @libsql/client 替换 better-sqlite3 原生模块，一份代码本地走 `file:` 协议、生产走 `libsql://` 协议，仅 DATABASE_URL 一个环境变量切换
 
 ---
 
