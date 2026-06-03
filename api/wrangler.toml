@@ -24,7 +24,18 @@ compatibility_flags = ["nodejs_compat"]
 
 # 默认情况下 CF 会为你的 Worker 分配 <name>.workers.dev 域名
 # workers_dev = true 显式打开（其实是默认值，这里写出来是为了 grep 时一眼能看到）
+# 保留它当后备域名 —— 自定义域被墙时还能切回来用
 workers_dev = true
+
+# 自定义域名（解决大陆访问 *.workers.dev 不稳的问题）
+# custom_domain = true 让 wrangler deploy 自动：
+#   1. 在 bobodylan.com 的 DNS 区里加 api 子域名记录指向 Workers 边缘
+#   2. 通过 CF Universal SSL 自动签发证书
+# 部署后 https://api.bobodylan.com 直接可用，比 *.workers.dev 在大陆稳很多
+# （DNS 走 CF 自己的服务器，IP 走 CF 边缘稳定 IP 段）
+routes = [
+  { pattern = "api.bobodylan.com", custom_domain = true }
+]
 
 # ============================================================
 # 没写在这里、但要知道的事
