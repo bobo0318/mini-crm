@@ -2,8 +2,8 @@
 
 > 一个从零搭建的全栈中后台 demo —— Vue 3 + TypeScript + Hono + Drizzle + Turso
 
-[![在线 Demo](https://img.shields.io/badge/Demo-mini--crm--seven--steel.vercel.app-blue?style=flat-square&logo=vercel)](https://mini-crm-seven-steel.vercel.app)
-[![后端 API](https://img.shields.io/badge/API-mini--crm--api--mr3b.onrender.com-green?style=flat-square&logo=render)](https://mini-crm-api-mr3b.onrender.com/api/health)
+[![在线 Demo](https://img.shields.io/badge/Demo-crm.bobodylan.com-blue?style=flat-square&logo=cloudflare)](https://crm.bobodylan.com)
+[![后端 API](https://img.shields.io/badge/API-api.bobodylan.com-orange?style=flat-square&logo=cloudflare)](https://api.bobodylan.com/api/health)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](#)
 
 <p align="center">
@@ -12,11 +12,13 @@
 
 ## 🌐 在线体验
 
-- **线上地址**：https://mini-crm-seven-steel.vercel.app
+- **线上地址**：https://crm.bobodylan.com（自定义域，国内可直连）
 - **默认账号**：`admin@test.com` / `123456`
 - **测试角色**：admin 可看全部 / sales 受数据权限限制 / viewer 只读
 
-> ⚠️ 后端用 Render 免费 tier 部署，**15 分钟无访问会休眠**，第一次打开可能要等 30-50 秒冷启动。
+> 前端 Cloudflare Pages + 后端 Cloudflare Workers + 数据库 Turso，整套都在 CF 边缘节点，**0 ms 冷启动 + 中国大陆可直接访问**。
+
+> 备用 demo：https://mini-crm-seven-steel.vercel.app （海外节点 Vercel + Render，部分网络环境可能慢/不通）
 
 ## ✨ 核心功能
 
@@ -31,7 +33,7 @@
 | **工作台仪表盘** | ECharts 折线 / 漏斗 / 横向柱状三图 + 4 项核心指标卡片 + 角色差异化数据 |
 | **国际化** | vue-i18n 中英双语 + Ant Design Vue locale 联动切换 |
 | **暗黑模式** | Ant Design Vue 内置 darkAlgorithm + useToken() 联动自定义 DOM 颜色 |
-| **生产部署** | Vercel（前端）+ Render（后端）+ Turso（云上 SQLite） |
+| **生产部署** | ⭐ Cloudflare Pages（前端）+ Cloudflare Workers（后端）+ Turso（云上 SQLite）+ 自定义域 `bobodylan.com`，全球边缘节点，**大陆可直连** |
 
 ## 🛠 技术栈
 
@@ -55,20 +57,22 @@
 
 | | |
 |---|---|
-| Web 框架 | Hono + @hono/node-server |
+| Web 框架 | Hono（**跨 runtime 设计**：同一份代码同时跑 Node.js 和 Cloudflare Workers） |
+| 运行时 | Cloudflare Workers（生产）/ Node.js + @hono/node-server（本地 dev 备选） |
 | ORM | Drizzle ORM |
-| 数据库 driver | @libsql/client（本地 file: / 远程 Turso 同套代码） |
+| 数据库 driver | @libsql/client（本地 file: / 生产 Turso 同套代码） |
 | 校验 | Zod |
-| 鉴权 | jsonwebtoken + bcryptjs |
-| 开发 | tsx watch |
+| 鉴权 | **hono/jwt**（Web Crypto API，Workers 原生兼容）+ bcryptjs |
+| 开发 | wrangler dev（本地模拟 Workers runtime）/ tsx watch（Node 本地快迭代） |
 
 ### 部署
 
 | | |
 |---|---|
-| 前端 | Vercel（免费） |
-| 后端 | Render（免费，但休眠） |
+| 前端 | **Cloudflare Pages**（边缘节点，自定义域 `crm.bobodylan.com`） |
+| 后端 | **Cloudflare Workers**（0 ms 冷启动，自定义域 `api.bobodylan.com`） |
 | 数据库 | Turso（云上 SQLite） |
+| 备份部署 | Vercel + Render free tier（最初部署方案，海外节点） |
 
 ## 🚀 本地启动
 
@@ -176,7 +180,15 @@ mini-crm/
 ### 8. 一套代码本地 + 云端通用
 后端 `@libsql/client` 同时支持 `file:` 本地协议和 `libsql://` Turso 远程协议，通过环境变量切换。
 
-## 📚 学习路径（D0 - D12）
+### 9. 从 Node.js / Render 迁移到 Cloudflare Workers（解决大陆访问 + 0 ms 冷启动）
+首版部署 Vercel + Render free tier 在大陆访问不稳（Render 冷启动 30-50 秒 + onrender.com 部分 IP 被墙）。
+- 后端从 Node.js + @hono/node-server 迁到 **Cloudflare Workers**：拆 `app.ts`（runtime 无关业务）/ `index.ts`（Workers 入口）/ `node-dev.ts`（Node 本地入口 fallback），同一份业务代码两个 runtime 通跑
+- JWT 从 `jsonwebtoken`（Node crypto 同步）换 **`hono/jwt`（Web Crypto 异步）** 兼容 Workers
+- db client 改"Proxy 懒初始化"避开 Workers 模块加载时机问题（路由层完全不动）
+- 前端从 Vercel 迁到 **Cloudflare Pages**，绑自定义域 `crm.bobodylan.com` / `api.bobodylan.com`
+- 最终：**整套都在 CF 边缘节点，0 ms 冷启动 + 大陆直连**，Render 冷启动 + 海外 IP 被墙的双重问题彻底解决
+
+## 📚 学习路径（D0 - D12 + 后端 runtime 迁移）
 
 ```
 D0  项目立项 + 14 天开发计划
@@ -189,7 +201,8 @@ D7-D8 销售漏斗 Kanban + vuedraggable + 乐观更新
 D9  ⭐ 权限三级控制（RBAC）
 D10 工作台仪表盘（ECharts 三图）
 D11 国际化 + 暗黑模式
-D12 ⭐ 部署上线（Vercel + Render + Turso）+ README
+D12 部署上线 v1（Vercel + Render + Turso）+ README
+D12+ ⭐ 部署上线 v2（Cloudflare Pages + Workers + Turso + 自定义域 bobodylan.com，解决大陆访问）
 ```
 
 详见 [`PROJECT_PLAN.md`](PROJECT_PLAN.md)。
