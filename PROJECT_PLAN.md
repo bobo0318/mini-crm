@@ -324,6 +324,14 @@ mini-crm/
 - 在线访问：[https://mini-crm-seven-steel.vercel.app](https://mini-crm-seven-steel.vercel.app)
 - 跨环境兼容：后端用 @libsql/client 替换 better-sqlite3 原生模块，一份代码本地走 `file:` 协议、生产走 `libsql://` 协议，仅 DATABASE_URL 一个环境变量切换
 
+### 完成 D12+ 后能加（迁 Cloudflare 解决大陆访问）
+- 后端从 Render free tier（休眠 30-50 秒冷启动）迁到 **Cloudflare Workers**（0 ms 冷启动 + 边缘节点），同一份 Hono 业务代码经入口三件套（`app.ts` 业务 + `index.ts` Workers 入口 + `node-dev.ts` Node 入口）双 runtime 通跑
+- JWT 库从 `jsonwebtoken`（Node `crypto` 同步 API）换 `hono/jwt`（Web Crypto 异步 API），并 db client 改 Proxy 懒初始化，**让 9 个 route 文件零侵入**适配 Workers 环境
+- 前端从 Vercel 迁到 **Cloudflare Pages**（边缘节点），用 `_redirects` 文件做 SPA fallback
+- 自购域名 `bobodylan.com` 绑两个子域（`crm.bobodylan.com` → Pages，`api.bobodylan.com` → Workers），CF 自动建 DNS + Universal SSL
+- 整套架构迁完 **中国大陆可直接访问**（解决原 Vercel + Render 部分 IP 段在大陆被墙的问题）
+- 在线访问：[https://crm.bobodylan.com](https://crm.bobodylan.com)
+
 ---
 
 ## 九、动手流程（明天开工时照着做）

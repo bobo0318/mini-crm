@@ -41,7 +41,8 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 [x] D9 - 权限三级控制
 [x] D10 - 工作台仪表盘
 [x] D11 - i18n + 暗黑模式
-[x] D12 - 部署上线 + README
+[x] D12 - 部署上线 v1（Vercel + Render + Turso）+ README
+[x] D12+ - 部署上线 v2（Cloudflare Pages + Workers + Turso，自定义域 bobodylan.com，解决大陆访问）
 ```
 
 > 完成每个阶段后，**在这里把对应行的 [ ] 改为 [x]**，并在下面"最近进展"加一行简短记录。
@@ -62,6 +63,7 @@ Mini CRM —— 一个 Vue 3 + Vite + TS 全栈中后台 demo 项目。
 - 2026-05-30：D10 完成 —— 工作台仪表盘。**后端**：4 个 stats 接口（/api/stats/overview, /customer-trend, /deal-funnel, /sales-rank），用 drizzle 的 sql\`\` 模板写聚合查询（count/sum/group by/date(...)）；⭐ **角色差异化数据**：抽 ownerFilter(role, userId, column) 工具函数 —— sales 角色返回 `eq(列, userId)` 限自己，admin/viewer 返回 undefined 等于不加 where（drizzle 的 where(undefined) 自动忽略），权限码不变但 SQL 维度按角色变。指标设计：总客户数 / 本月新增 / 进行中商机（stage 非 won/lost）/ ⭐ **加权预期金额** = sum(amount × probability / 100) 仅未结束商机 —— 销售管线常用指标，给 D10 留的 probability 字段在 D7 就埋好了。SQLite 的 `date(created_at, 'unixepoch')` 把 unix 时间戳列按天分组（mode:'timestamp' 存的是秒数）。**前端**：(1) **useChart composable**（composables/useChart.ts）封装 ECharts 生命周期 —— onMounted echarts.init、暴露 setOption、window resize 监听 + onBeforeUnmount 移除监听 + dispose，⭐ ECharts 实例用 **shallowRef** 不用 ref（ECharts 内部对象巨大，深度响应式会严重拖性能）；(2) Dashboard.vue 重写：4 个 a-statistic 卡片 + 3 张图（折线/漏斗/横柱）；(3) ⭐ **Promise.all** 并发拉 4 接口（比串行快 4 倍，F12 Network 能看到 4 个请求同时发出）。**图表细节**：漏斗图 sort='none' 保留后端固定顺序（默认 descending 会按数量重排导致 lead=0 排到底层，漏斗倒过来）；横柱图 reverse 让金额高的在最上面（ECharts 横柱默认从下往上画）；折线图 minInterval:1 防 y 轴出现小数刻度。**ECharts 引入**：用全量 `import * as echarts from 'echarts'`，生产环境推荐按需引入（echarts/core + 单独 import 用到的组件），bundle 能减 60%+，D10 先不优化。
 - 2026-05-30：D11 完成 —— i18n 中英双语 + 暗黑模式（范围取舍：i18n 只做框架 + 顶栏/菜单/登录页，业务页中文不抽）。**i18n**：vue-i18n 11.x，locales/ 拆 zh-CN.ts / en.ts / index.ts（嵌套结构 common/layout/menu/login）；createI18n 用 legacy:false + globalInjection:true（Composition API + 模板 $t 全局）；默认 locale 从 localStorage 直读（i18n 创建时 Pinia 还没 hydrate）。**settings store**：locale + theme 两件事，persistedstate 持久化；提供 toggleLocale / toggleTheme 工具方法。**联动**：(1) App.vue 用 a-config-provider 包 router-view，把 settings.locale 映射 AD Vue 自带 zhCN/enUS locale（让"上一页/下一页"等内置文案跟着切），(2) MainLayout/Login 各自 watch settings.locale → i18nLocale.value 同步，(3) Login 校验 rules 用 computed 包让红字校验信息也跟着 locale 变。**暗黑模式**：用 AD Vue 4 内置 `theme.darkAlgorithm`（一行配置整套组件库变暗），手写 div 的背景/文字色用 `theme.useToken()` 拿到 token 绑 inline style（MainLayout 顶栏/内容区/user-trigger；Login 卡片+背景；DealBoard 列 colorFillSecondary + 卡片 colorBgContainer；CustomerDetail.tabs；FollowUpTimeline.content）—— token 是 reactive ref，主题切了 inline style 自动变。**第三方组件主题**：md-editor-v3 MdEditor / MdPreview 都接受 :theme prop，绑 settings.theme 让编辑器跟着切。**全局 webkit autofill 修复**：style.css 加 `html.theme-dark` 类切换 + `input:-webkit-autofill` 用 `-webkit-box-shadow inset` hack 强制覆盖 Chrome 自动填充背景（autofill 优先级超高，普通 background-color 改不掉）。**新增用户表单防 autofill**：邮箱 autocomplete="off" + 密码 autocomplete="new-password"。⚠️ **中途踩坑 1 个大的**：vue-i18n 11.x + Vite 8 报 "init_runtime_dom_esm_bundler is not defined" —— vue-i18n 11.x 默认入口被 Vite esbuild 处理后 init helper 被错位 hoist；fix：vite.config.ts 加 `optimizeDeps.exclude: [vue-i18n]`（不预构建走原生 ESM）+ `resolve.dedupe: [vue]`（强制单一 vue runtime 实例）。
 - 2026-06-02：D12 完成 —— 部署上线 + README。**后端切 libsql**：原 better-sqlite3 是 Node 原生模块（部署到 Render/Vercel serverless 容易 native binding 报错），换成 @libsql/client + drizzle-orm/libsql 适配层 —— ⭐ **同一份代码本地走 `file:./mini-crm.db` 协议、生产走 `libsql://xxx.turso.io` 协议**，靠 DATABASE_URL 环境变量切。**环境变量全收口**：JWT_SECRET / DATABASE_URL / DATABASE_AUTH_TOKEN / PORT 全走 .env，前端 VITE_API_BASE_URL 区分 .env.development（留空走 Vite proxy）和 .env.production（贴 Render 后端 URL），.env.example 留模板。**部署**：(1) 前端 Vercel —— vercel.json 配 SPA fallback `{"rewrites":[{"source":"/(.*)","destination":"/"}]}`，⚠️ **不加这个 F5 子路由会 404**（SPA 路由是前端 JS 处理的，服务器找不到对应文件就 404，必须全部 rewrite 到 index.html 交还给 vue-router），自动监听 main 分支 push 触发部署；(2) 后端 Render free tier —— 15 分钟无访问休眠，首次冷启动 30-50 秒（README 写明提示）；(3) 数据库 Turso —— 云上 SQLite，免费 500MB 够 demo。**README.md** 199 行：3 个徽章（Demo / API / License）+ 在线体验账号 + 9 项核心功能表 + 前后端技术栈表 + 本地启动步骤 + 项目结构 + ⭐ **8 条简历亮点**（JWT 闭环 / BasicForm Schema 驱动 / 看板乐观更新 / 三级权限 + 数据权限 / 自锁防御 / useChart + shallowRef / 暗黑模式不维护两套 CSS / libsql 一套代码本地+云端通用）+ D0-D12 学习路径 + License。**test.http D12 演示数据脚本**：5 客户 / 8 联系人 / 6 跟进 / 8 商机一键造完，⭐ 用 REST Client 的 `# @name custByte` 让每个客户响应被命名捕获，后续 contacts / followUps / deals 直接引用 `{{custByte.response.body.id}}` —— 不用手填 customerId，从 ③ 登录开始按顺序点 Send Request 即可。⚠️ 中途踩坑：REST Client 的 Send Request 链接靠 `###` 切块，节标题前漏 ### 会被并入上一块，"客户 1-5 / 字节联系人 1 / 字节跟进 1 / lead 商机 1" 共 8 处都漏了，已统一补上。
+- 2026-06-03：D12+ 完成 —— 后端迁 Cloudflare Workers + 前端迁 CF Pages + 全自定义域 bobodylan.com。**起因**：D12 v1 的 Vercel + Render free tier 在大陆访问不稳（Render 15 分钟休眠 + 冷启动 30-50 秒导致登录超时；onrender.com / vercel.app 部分 IP 在大陆被墙）。**后端 Node → Workers**：(1) ⭐ **入口拆三件套** —— `app.ts`（Hono 业务，runtime 无关）+ `index.ts`（Workers 入口，2 行 `export default app`）+ `node-dev.ts`（Node 入口，dotenv + serve），同一份业务代码两个 runtime 通跑；(2) **JWT 换库** —— jsonwebtoken（Node crypto 同步）→ `hono/jwt`（Web Crypto 异步），所有调用方加 `await`；⚠️ hono/jwt 4.12+ 要求 verify 显式传 `'HS256'`（防 None 算法攻击），sign 也加上保持一致；(3) **db client Proxy 懒初始化** —— 模块顶部不再 createClient，改成首次访问 db 任意属性时触发 getDb，外层 Proxy 透明代理 + bind 到真 db 实例，⭐ 路由层 9 个文件一行不动；(4) **CORS 懒读 + 缓存** 同理；(5) `wrangler.toml` 加 `compatibility_flags = ["nodejs_compat"]`（bcryptjs 需 Buffer polyfill），加 `routes = [{pattern="api.bobodylan.com", custom_domain=true}]` 让 wrangler deploy 自动建 DNS + 签 SSL。**前端 Vercel → CF Pages**：(1) 加 `web/public/_redirects` 配 `/* /index.html 200`（CF Pages 的 SPA fallback，对应 vercel.json 的 rewrites）；(2) CF Pages 后台 connect GitHub repo，Framework preset = Vue，Build command = `npm run build`，Build output = `dist`，⚠️ **Root directory 必须填 `web`**（默认是 repo 根，但前端在 web/ 子目录）；(3) 环境变量 VITE_API_BASE_URL = `https://api.bobodylan.com/api`；(4) 绑自定义域 `crm.bobodylan.com`，CF 自动建 CNAME + 签 SSL。**双轨保留**：迁移做在 feat/cf-workers 分支，main + Vercel + Render 生产**全程不动**当备份；CF 这套通过 preview 部署测，OK 后再合并。**Vercel env scope**：把 Vercel 后台的 VITE_API_BASE_URL 限定到 "Production only"，让 preview 部署回落到分支里 web/.env.production 文件（这样 preview 测的是 Workers，不会被 Vercel env 强行盖成 Render URL）。⚠️ **踩坑 4 个**：(1) hono/jwt verify 需显式 alg；(2) Vercel env scope 改完不会自动重 build，得 push 个空 commit 触发；(3) build 完前端 bundle 是烤死的，浏览器要 Cmd+Shift+R 硬刷新才换；(4) 装 wrangler 时一开始 cwd 错位在根目录建了多余 package.json + node_modules，事后清掉了。**最终架构**：crm.bobodylan.com → CF Pages → 调 api.bobodylan.com → CF Workers → Turso。**清理**：删 jsonwebtoken / @types/jsonwebtoken（已被 hono/jwt 取代，没人引用）。Login.vue 输入框默认值清空（部署成线上 demo 后不该预填 admin@test.com / 123456）。
 
 ---
 
@@ -73,11 +75,16 @@ Vue 3 + Vite + TypeScript + `<script setup>` + 组合式 API
 + Vue Router 4 + axios + ECharts + vuedraggable + md-editor-v3 + vue-i18n
 
 ### 后端 `api/`
-Hono + @hono/node-server + Drizzle ORM + @libsql/client（本地 file: / 生产 Turso 同套代码）
-+ jsonwebtoken + bcryptjs + zod
+Hono（**跨 runtime 设计**：Cloudflare Workers 生产 / Node 本地 dev 同套业务代码）
++ Drizzle ORM + @libsql/client（本地 file: / 生产 Turso 同套代码）
++ hono/jwt（Web Crypto，Workers 原生兼容）+ bcryptjs + zod
++ Node 本地入口走 @hono/node-server + dotenv（src/node-dev.ts）
 
-### 部署
-前端 Vercel + 后端 Render + 数据库 Turso（云上 SQLite）
+### 部署（D12+ 现状）
+- 前端 **Cloudflare Pages** + 自定义域 `crm.bobodylan.com`（大陆可直连）
+- 后端 **Cloudflare Workers** + 自定义域 `api.bobodylan.com`（0 ms 冷启动）
+- 数据库 Turso（云上 SQLite）
+- D12 v1 备份：前端 Vercel `mini-crm-seven-steel.vercel.app` + 后端 Render `mini-crm-api-mr3b.onrender.com`，海外节点（仍跑着）
 
 ---
 
