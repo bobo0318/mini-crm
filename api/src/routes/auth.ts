@@ -89,7 +89,8 @@ auth.post('/register', async (c) => {
     .get()
 
   // 7. 签发 token
-  const token = generateToken({
+  //    迁 CF Workers：generateToken 现在是 async，要 await
+  const token = await generateToken({
     userId: newUser.id,
     email: newUser.email,
   })
@@ -148,7 +149,8 @@ auth.post('/login', async (c) => {
   }
 
   // 密码对上了，签发 token
-  const token = generateToken({
+  //    迁 CF Workers：generateToken 现在是 async，要 await
+  const token = await generateToken({
     userId: user.id,
     email: user.email,
   })

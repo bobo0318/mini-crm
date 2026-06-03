@@ -47,7 +47,8 @@ export const authMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
   const token = authHeader.slice(7)
 
   // 3. 校验 token
-  const payload = verifyToken(token)
+  //    迁 CF Workers：verifyToken 现在是 async（用 Web Crypto 异步签名验证），所以要 await
+  const payload = await verifyToken(token)
   if (!payload) {
     return c.json({ error: 'token 无效或已过期' }, 401)
   }

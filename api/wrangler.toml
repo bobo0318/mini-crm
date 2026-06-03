@@ -1,0 +1,44 @@
+# Cloudflare Workers 配置文件
+# 类比：相当于 package.json 在 CF Workers 世界的角色 ——
+# 告诉 wrangler 这个项目"叫啥、入口在哪、用什么 runtime 版本"。
+# 部署时 wrangler 读这个文件，知道往 CF 哪个槽位部、用什么名字、暴露什么 URL。
+
+# Worker 的名字
+# 部署后默认 URL = https://<name>.<你 CF 账号的子域名>.workers.dev
+# 例如：https://mini-crm-api.bobl.workers.dev
+name = "mini-crm-api"
+
+# 入口文件 —— 跟 package.json 的 main 字段含义一样
+# 这个文件必须 export default 一个有 fetch 方法的对象（也就是 Hono app）
+main = "src/index.ts"
+
+# 兼容性日期 ——把 Workers runtime 的"行为"钉死在某个日期
+# Workers runtime 的内置 API 会持续演进，钉死日期可以避免未来 runtime 升级时意外破坏你的代码
+# 设成今天附近的日期即可，部署后不要再随意往前推
+compatibility_date = "2026-06-03"
+
+# 兼容性 flags ——开启 Web 标准之外的能力
+#   nodejs_compat：开启 Node.js API polyfill（process / Buffer / 部分 Node 模块在 Workers 里可用）
+#                  bcryptjs 内部用到 Buffer，不开这个 flag 它在 Workers 里跑不起来
+compatibility_flags = ["nodejs_compat"]
+
+# 默认情况下 CF 会为你的 Worker 分配 <name>.workers.dev 域名
+# workers_dev = true 显式打开（其实是默认值，这里写出来是为了 grep 时一眼能看到）
+workers_dev = true
+
+# ============================================================
+# 没写在这里、但要知道的事
+# ============================================================
+#
+# 1. 环境变量怎么进来？
+#    敏感变量（JWT_SECRET / DATABASE_URL / DATABASE_AUTH_TOKEN / CORS_ORIGIN）通过
+#    `wrangler secret put XXX` 写到 CF 的加密存储里，不放在这个 toml 文件
+#    （toml 是 commit 进 git 的，不能放密钥）
+#
+# 2. 本地 wrangler dev 怎么读环境变量？
+#    在 api/ 下建一个 .dev.vars 文件（已 gitignore），格式就是 KEY=VALUE
+#    wrangler dev 启动时自动加载它
+#
+# 3. 这两套环境变量在代码里怎么访问？
+#    Hono 里通过 c.env.XXX 访问 —— 不再是 process.env.XXX
+#    （后面改 index.ts / auth.ts / db/client.ts 时会看到这个变化）
