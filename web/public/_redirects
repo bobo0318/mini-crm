@@ -1,0 +1,14 @@
+# Cloudflare Pages 的 SPA fallback
+#
+# 跟 vercel.json 里的 rewrites 等价 ——
+# 让所有"路径找不到对应文件"的请求都 fallback 到 /index.html，
+# 交给 vue-router 在前端处理路由
+#
+# 不加这个：直接访问 https://crm.bobodylan.com/customer/123 会 404
+# 加了之后：CF Pages 返回 /index.html，浏览器加载 Vue 应用后 vue-router 接管 /customer/123
+#
+# 格式：<source> <destination> <status>
+# /* 匹配任何路径，200 是返回的 HTTP 状态码
+#
+# Vite 构建时 public/ 下所有文件原样复制到 dist/，所以 _redirects 最终在 dist 根
+/* /index.html 200
