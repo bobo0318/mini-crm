@@ -52,6 +52,7 @@ const updateSchema = z.object({
 // GET /api/users —— 列表
 // =====================================================
 // 一次查 user + 关联的 role，前端拿到的数据"用户名 + 角色名"都有了，不用再调 /api/roles join
+// D12+：返回 adminType 给前端渲染"账号类型"列
 user.get('/', permission('user:read'), async (c) => {
   // leftJoin：即使某个 user 的 role_id 是 null 也能返回（理论上不该有，但保险）
   const rows = await db
@@ -61,6 +62,7 @@ user.get('/', permission('user:read'), async (c) => {
       name: users.name,
       roleId: users.roleId,
       roleName: roles.name,
+      adminType: users.adminType,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -145,6 +147,16 @@ user.put('/:id', permission('user:update'), async (c) => {
     return c.json({ error: '不能修改自己的角色' }, 400)
   }
 
+  // ⭐ D12+ main 保护：main 账号的 roleId 任何人都不能改
+  // （比自锁更严格 —— 即使是 sub admin 也不能给 main 降级）
+  if (
+    existing.adminType === 'main' &&
+    parsed.data.roleId &&
+    parsed.data.roleId !== existing.roleId
+  ) {
+    return c.json({ error: '不能修改主账号的角色' }, 403)
+  }
+
   // 改 email 时检查唯一性（排除自己）
   if (parsed.data.email && parsed.data.email !== existing.email) {
     const conflict = await db
@@ -201,6 +213,11 @@ user.delete('/:id', permission('user:delete'), async (c) => {
   const existing = await db.select().from(users).where(eq(users.id, id)).get()
   if (!existing) {
     return c.json({ error: '用户不存在' }, 404)
+  }
+
+  // ⭐ D12+ main 保护：main 账号不可删（即使其他 admin 也不能删 main，包括 main 自己）
+  if (existing.adminType === 'main') {
+    return c.json({ error: '不能删除主账号' }, 403)
   }
 
   await db.delete(users).where(eq(users.id, id)).run()

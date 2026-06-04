@@ -1,14 +1,15 @@
-// 数据库种子脚本（D9 引入）
+// 数据库种子脚本（D9 引入，D12+ 扩展）
 // 用法：cd api && npm run db:seed
 //
-// 干两件事：
-//   1. 塞 3 个内置角色（admin / sales / viewer + 各自的权限码列表）
+// 干 3 件事：
+//   1. 塞 3 个内置角色（admin / sales / viewer + 各自的权限码列表，type='system'）
 //   2. 给所有 roleId 为 null 的旧 user 补成 admin 角色
+//   3. 选定 1 个 user 升为 main 账号（最小 id 那个；DB 里有 main 就跳过）
 //
-// 幂等：重复跑安全（已有数据就跳过）
+// 幂等：重复跑安全（已有数据就跳过对应步骤）
 
 import 'dotenv/config'
-import { eq, isNull } from 'drizzle-orm'
+import { asc, eq, isNull } from 'drizzle-orm'
 
 import { db } from './client'
 import { roles, users } from './schema'
@@ -24,6 +25,10 @@ import { roles, users } from './schema'
 //   - 前端将来用 v-auth 指令也用这些字符串，所以这里就是 single source of truth
 
 // admin —— 全部权限
+//
+// ⭐ D12+ 加 role 的写权限（create/update/delete）：
+//    自定义角色支持开了之后，admin 才能在前端"新增角色"
+//    这些权限只给 admin，不给 sales/viewer
 const ALL_PERMISSIONS = [
   // 客户
   'customer:read', 'customer:create', 'customer:update', 'customer:delete',
@@ -35,9 +40,10 @@ const ALL_PERMISSIONS = [
   'deal:read', 'deal:create', 'deal:update', 'deal:delete',
   // Excel 导出
   'export:excel',
-  // 后台管理
+  // 后台管理 —— 用户
   'user:read', 'user:create', 'user:update', 'user:delete',
-  'role:read',
+  // 后台管理 —— 角色（D12+ 新增 create/update/delete）
+  'role:read', 'role:create', 'role:update', 'role:delete',
 ]
 
 // sales —— 全部 read/create/update，没有 delete，没有后台管理
@@ -62,30 +68,41 @@ const VIEWER_PERMISSIONS = [
 async function seed() {
   // ---- 1. 角色种子数据 ----
   // 已有角色就跳过（让脚本可重复跑）
+  // ⭐ 内置 3 个 type='system' —— 永远不可改不可删
   const existingRoles = await db.select().from(roles).all()
   if (existingRoles.length === 0) {
     await db.insert(roles)
       .values([
         {
           name: 'admin',
+          type: 'system',
           description: '管理员（全部权限）',
           permissions: ALL_PERMISSIONS,
         },
         {
           name: 'sales',
+          type: 'system',
           description: '销售（无删除/管理权限，且只能改自己的客户）',
           permissions: SALES_PERMISSIONS,
         },
         {
           name: 'viewer',
+          type: 'system',
           description: '只读访客',
           permissions: VIEWER_PERMISSIONS,
         },
       ])
       .run()
-    console.log('✓ 已初始化 3 个角色：admin / sales / viewer')
+    console.log('✓ 已初始化 3 个内置角色：admin / sales / viewer（type=system）')
   } else {
-    console.log(`✓ roles 表已有 ${existingRoles.length} 个角色，跳过初始化`)
+    // 已有角色时同步一下 admin 的 permissions —— 给老版 admin 补上 role:create/update/delete
+    // 这样 db:seed 重跑能让老 DB 升级到新权限码集
+    await db
+      .update(roles)
+      .set({ permissions: ALL_PERMISSIONS })
+      .where(eq(roles.name, 'admin'))
+      .run()
+    console.log(`✓ roles 表已有 ${existingRoles.length} 个角色；已同步 admin 的最新权限码`)
   }
 
   // ---- 2. 给老 users 补 admin ----
@@ -103,6 +120,35 @@ async function seed() {
     .where(isNull(users.roleId))
     .run()
   console.log(`✓ 已给 ${result.rowsAffected} 个旧用户补 admin 角色`)
+
+  // ---- 3. 选定 1 个 user 升为 main 账号 ----
+  // 规则：DB 里已有 main 就跳过；否则把最小 id 的 user 升为 main
+  // 这是"系统初始化"动作，新系统跑 seed 时第一个用户自动成为主账号
+  const existingMain = await db
+    .select()
+    .from(users)
+    .where(eq(users.adminType, 'main'))
+    .get()
+  if (existingMain) {
+    console.log(`✓ DB 已有 main 账号（id=${existingMain.id} email=${existingMain.email}），跳过`)
+  } else {
+    const firstUser = await db
+      .select()
+      .from(users)
+      .orderBy(asc(users.id))
+      .limit(1)
+      .get()
+    if (firstUser) {
+      await db
+        .update(users)
+        .set({ adminType: 'main' })
+        .where(eq(users.id, firstUser.id))
+        .run()
+      console.log(`✓ user(id=${firstUser.id}, email=${firstUser.email}) 升为 main 账号`)
+    } else {
+      console.log('✓ 当前没有任何 user，跳过 main 升级（注册第一个用户后再跑 db:seed 即可）')
+    }
+  }
 }
 
 // =====================================================

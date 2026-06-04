@@ -15,7 +15,10 @@ export interface AdminUserRow {
   email: string
   name: string | null
   roleId: number | null
-  roleName: 'admin' | 'sales' | 'viewer' | null
+  // D12+：放宽到 string，因为自定义角色 name 是用户输入的
+  roleName: string | null
+  // D12+：账号类型 'main' = 主账号唯一 / 'sub' = 副手 admin / 普通员工
+  adminType: 'main' | 'sub'
   createdAt: string
 }
 

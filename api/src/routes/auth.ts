@@ -77,6 +77,9 @@ auth.post('/register', async (c) => {
   // 6. 插入数据库
   //    .returning() 让 SQLite 把新插入的行返回回来（自增 id 已经填好了）
   //    .get() 拿到那一行
+  //
+  // ⭐ D12+：注意这里没显式传 adminType —— schema 的 DEFAULT 'sub' 会自动生效
+  //    register 接口永远只造 sub 账号，main 由 seed.ts 在系统初始化时种 1 个
   const newUser = await db
     .insert(users)
     .values({

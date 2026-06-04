@@ -15,14 +15,19 @@ import { verifyToken, type JwtPayload } from '../utils/jwt'
 // 类型扩展
 // =====================================================
 //
-// c 上现在挂两个变量：
-//   user —— JWT 解码出来的轻量信息（userId, email）
-//   role —— 从 db 查的角色信息（含权限码列表，给 permission 中间件用）
+// c 上现在挂 3 个变量：
+//   user        —— JWT 解码出来的轻量信息（userId, email）
+//   role        —— 从 db 查的角色信息（含权限码列表，给 permission 中间件用）
+//   adminType   —— 从 db 查的账号类型 'main' | 'sub'，给 main 守门规则用
 //
-// 为啥不合并到一个变量？职责分离 —— user 来源是 JWT，role 来源是 db 查询，两个东西的生命周期不同
+// 为啥拆 3 个？职责分离 —— user 来源是 JWT，role / adminType 来源是 db 查询，生命周期不同
+//
+// ⚠️ RoleContext.name 从字面量 'admin'|'sales'|'viewer' 放宽到 string，
+//    因为自定义角色的 name 是用户输入的，编译期不知道
+//    需要 narrow 时显式 if(role.name === 'admin') 或 cast
 export type RoleContext = {
   id: number
-  name: 'admin' | 'sales' | 'viewer'
+  name: string
   permissions: string[]
 }
 
@@ -30,6 +35,7 @@ export type AuthEnv = {
   Variables: {
     user: JwtPayload
     role: RoleContext
+    adminType: 'main' | 'sub'
   }
 }
 
@@ -53,12 +59,13 @@ export const authMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
     return c.json({ error: 'token 无效或已过期' }, 401)
   }
 
-  // 4. D9 新增：查 user + role 一次
+  // 4. D9 新增：查 user + role 一次，顺便把 adminType 也取出来
   //    leftJoin —— roles 表可能为空（role_id 是 nullable），但我们后面会兜底
   //    .get() 返回单行（或 undefined）
   const row = await db
     .select({
       roleId: users.roleId,
+      adminType: users.adminType,
       roleName: roles.name,
       rolePermissions: roles.permissions,
     })
@@ -81,6 +88,7 @@ export const authMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
     // SQLite 的 JSON 列读出来是 unknown 类型，断言为 string[]
     permissions: row.rolePermissions as string[],
   })
+  c.set('adminType', row.adminType)
 
   await next()
 }

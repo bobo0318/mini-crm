@@ -1,12 +1,18 @@
 <script setup lang="ts">
-// 角色管理页（D9 Phase 3）—— 纯展示，不可编辑
+// 角色管理页（D9 Phase 3，D12+ 升级到支持自定义角色 CRUD）
 //
-// 业务说明：本系统只有 3 个内置角色（admin / sales / viewer），不支持动态新建角色
-// 这页主要给 admin 查看"每个角色到底有哪些权限"，配合用户管理页的"改角色"功能使用
+// 跟旧版区别：
+//   - 顶部 a-alert 改成"内置 3 不可改，自定义可改可删"
+//   - 加"新增角色"按钮（受 role:create 权限保护）
+//   - 表格加"类型"列（内置 / 自定义）
+//   - 表格加"操作"列：自定义角色可编辑/删除，内置只可查看（弹窗只读）
 
 import { onMounted, ref } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import { PlusOutlined } from '@ant-design/icons-vue'
 
-import { getRoleList, type Role } from '@/api/role'
+import { getRoleList, deleteRole, type Role } from '@/api/role'
+import RoleFormModal from './RoleFormModal.vue'
 
 const loading = ref(false)
 const dataSource = ref<Role[]>([])
@@ -24,63 +30,67 @@ async function fetchList() {
 onMounted(fetchList)
 
 // =====================================================
-// 角色显示样式映射
+// 弹窗交互
 // =====================================================
-// admin 用红色、sales 用蓝色、viewer 用灰色，跟用户直觉对齐
-const roleColorMap: Record<Role['name'], string> = {
-  admin: 'red',
-  sales: 'blue',
-  viewer: 'default',
+const formModalRef = ref<InstanceType<typeof RoleFormModal>>()
+
+function handleAdd() {
+  formModalRef.value?.open()
+}
+
+function handleEditOrView(record: Role) {
+  formModalRef.value?.open(record)
+}
+
+async function handleDelete(record: Role) {
+  Modal.confirm({
+    title: `确定删除角色 "${record.name}"？`,
+    content: '删除后无法恢复。如果仍有用户绑定该角色，会删除失败。',
+    okText: '删除',
+    okType: 'danger',
+    cancelText: '取消',
+    async onOk() {
+      await deleteRole(record.id)
+      message.success('删除成功')
+      fetchList()
+    },
+  })
 }
 
 // =====================================================
-// 把权限码按 resource: 前缀分组，更易读
+// 角色显示样式
 // =====================================================
 //
-// 输入：['customer:read', 'customer:create', 'deal:read', ...]
-// 输出：{ customer: ['read', 'create', ...], deal: ['read', ...], ... }
-//
-// 不分组的话每个角色一行展开 20 多个 tag 视觉混乱
-function groupPermissions(perms: string[]): Record<string, string[]> {
-  const groups: Record<string, string[]> = {}
-  for (const p of perms) {
-    const [resource, action] = p.split(':')
-    if (!groups[resource]) groups[resource] = []
-    groups[resource].push(action)
-  }
-  return groups
-}
-
-// 资源名 → 中文映射
-const resourceLabelMap: Record<string, string> = {
-  customer: '客户',
-  contact: '联系人',
-  followUp: '跟进',
-  deal: '商机',
-  export: '导出',
-  user: '用户',
-  role: '角色',
-}
-
-// 操作名 → 中文映射
-const actionLabelMap: Record<string, string> = {
-  read: '查看',
-  create: '新增',
-  update: '编辑',
-  delete: '删除',
-  excel: 'Excel',
+// 内置三个用固定颜色，自定义角色统一蓝紫色（区别于内置）
+function getRoleColor(record: Role): string {
+  if (record.type === 'custom') return 'purple'
+  // 内置 3 个
+  if (record.name === 'admin') return 'red'
+  if (record.name === 'sales') return 'blue'
+  return 'default' // viewer
 }
 </script>
 
 <template>
   <div>
-    <a-alert
-      message="系统内置 3 个角色，不支持动态新建/修改。如需调整某个用户的角色，请到「用户管理」页。"
-      type="info"
-      show-icon
-      style="margin-bottom: 16px"
-    />
+    <!-- 顶部说明 + 新增按钮 -->
+    <div class="header">
+      <a-alert
+        message="内置 3 个角色（admin / sales / viewer）不可修改不可删除；可新增自定义角色，权限由你自由勾选。"
+        type="info"
+        show-icon
+      />
+      <a-button
+        v-auth="'role:create'"
+        type="primary"
+        @click="handleAdd"
+      >
+        <template #icon><PlusOutlined /></template>
+        新增角色
+      </a-button>
+    </div>
 
+    <!-- 表格 -->
     <a-table
       :data-source="dataSource"
       :loading="loading"
@@ -88,51 +98,68 @@ const actionLabelMap: Record<string, string> = {
       row-key="id"
       bordered
     >
-      <a-table-column title="角色" data-index="name" :width="120">
+      <a-table-column title="角色" data-index="name" :width="160">
         <template #default="{ record }">
-          <a-tag :color="roleColorMap[(record as Role).name]">
+          <a-tag :color="getRoleColor(record as Role)">
             {{ (record as Role).name }}
           </a-tag>
         </template>
       </a-table-column>
 
-      <a-table-column title="描述" data-index="description" :width="280" />
-
-      <a-table-column title="权限">
+      <a-table-column title="类型" data-index="type" :width="100">
         <template #default="{ record }">
-          <!-- 按 resource 分组渲染：每组一行，左侧资源名，右侧动作 tag -->
-          <div
-            v-for="(actions, resource) in groupPermissions((record as Role).permissions)"
-            :key="resource"
-            class="perm-row"
-          >
-            <span class="perm-label">{{ resourceLabelMap[resource] || resource }}：</span>
-            <a-tag v-for="action in actions" :key="action">
-              {{ actionLabelMap[action] || action }}
-            </a-tag>
-          </div>
-          <!-- viewer 角色只有 read 权限，但仍然展示出来 -->
-          <span v-if="(record as Role).permissions.length === 0" style="color: #ccc">
-            无任何权限
+          <a-tag :color="(record as Role).type === 'system' ? 'orange' : 'green'">
+            {{ (record as Role).type === 'system' ? '内置' : '自定义' }}
+          </a-tag>
+        </template>
+      </a-table-column>
+
+      <a-table-column title="描述" data-index="description" />
+
+      <a-table-column title="权限数" :width="100" align="center">
+        <template #default="{ record }">
+          <span>{{ (record as Role).permissions.length }} 项</span>
+          <span v-if="(record as Role).permissions.length === 0" style="color: #ccc; margin-left: 4px">
+            （空）
           </span>
         </template>
       </a-table-column>
+
+      <a-table-column title="操作" :width="160" align="center" fixed="right">
+        <template #default="{ record }">
+          <a-space>
+            <a-button type="link" size="small" @click="handleEditOrView(record as Role)">
+              {{ (record as Role).type === 'system' ? '查看' : '编辑' }}
+            </a-button>
+            <a-button
+              v-if="(record as Role).type === 'custom'"
+              v-auth="'role:delete'"
+              type="link"
+              size="small"
+              danger
+              @click="handleDelete(record as Role)"
+            >
+              删除
+            </a-button>
+          </a-space>
+        </template>
+      </a-table-column>
     </a-table>
+
+    <!-- 弹窗 -->
+    <RoleFormModal ref="formModalRef" @success="fetchList" />
   </div>
 </template>
 
 <style scoped>
-.perm-row {
-  margin-bottom: 4px;
-  line-height: 28px;
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
 }
-.perm-row:last-child {
-  margin-bottom: 0;
-}
-.perm-label {
-  display: inline-block;
-  width: 60px;
-  color: #666;
-  font-size: 12px;
+.header .ant-alert {
+  flex: 1;
 }
 </style>

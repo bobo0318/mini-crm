@@ -93,6 +93,12 @@ const isEditingSelf = computed(
   () => editingId.value !== null && editingId.value === currentUserId.value,
 )
 
+// D12+：是否是"编辑主账号"—— 编辑 main 时角色字段禁用（任何人都不能改 main 的 roleId）
+// 跟 isEditingSelf 一起取或，触发任一即禁用
+const editingRecordAdminType = ref<'main' | 'sub' | null>(null)
+const isEditingMain = computed(() => editingRecordAdminType.value === 'main')
+const roleSelectDisabled = computed(() => isEditingSelf.value || isEditingMain.value)
+
 const formRules = computed(() => ({
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
@@ -127,6 +133,7 @@ function resetForm() {
 function openCreate() {
   modalTitle.value = '新增用户'
   editingId.value = null
+  editingRecordAdminType.value = null
   resetForm()
   modalOpen.value = true
 }
@@ -134,6 +141,7 @@ function openCreate() {
 function openEdit(record: AdminUserRow) {
   modalTitle.value = '编辑用户'
   editingId.value = record.id
+  editingRecordAdminType.value = record.adminType // D12+：记下来给 isEditingMain 用
   formData.email = record.email
   formData.password = ''                          // 编辑时密码留空 = 不改
   formData.name = record.name || ''
@@ -220,11 +228,23 @@ async function handleDelete(record: AdminUserRow) {
         <template #default="{ record }">
           <a-tag
             v-if="(record as AdminUserRow).roleName"
-            :color="roleColorMap[(record as AdminUserRow).roleName!]"
+            :color="roleColorMap[(record as AdminUserRow).roleName!] || 'purple'"
           >
             {{ (record as AdminUserRow).roleName }}
           </a-tag>
           <span v-else style="color: #ccc">-</span>
+        </template>
+      </a-table-column>
+      <!-- D12+：账号类型列（主账号唯一，副手 N 个） -->
+      <a-table-column title="账号类型" :width="100">
+        <template #default="{ record }">
+          <a-tag
+            v-if="(record as AdminUserRow).adminType === 'main'"
+            color="gold"
+          >
+            主账号
+          </a-tag>
+          <a-tag v-else>副手</a-tag>
         </template>
       </a-table-column>
       <a-table-column title="创建时间" :width="180">
@@ -243,10 +263,15 @@ async function handleDelete(record: AdminUserRow) {
             编辑
           </a-button>
 
-          <!-- ⭐ 自己那一行不显示删除按钮（防误删锁死系统）
-               这里用 v-if 而不是 v-auth：判断条件是"行 id ≠ 当前用户 id"，跟权限码无关 -->
+          <!-- ⭐ 删除按钮的"不可点"组合条件（v-if 判断）：
+                 1. 自己那行（防误删锁死系统）—— D9 已有
+                 2. 主账号那行（D12+ 新增；后端也会拦，前端只是 UX 提前隐藏）
+               这两条都用 v-if 而不是 v-auth：判断跟当前数据相关，跟权限码无关 -->
           <a-popconfirm
-            v-if="(record as AdminUserRow).id !== currentUserId"
+            v-if="
+              (record as AdminUserRow).id !== currentUserId
+              && (record as AdminUserRow).adminType !== 'main'
+            "
             :title="`确认删除「${(record as AdminUserRow).email}」？此操作不可恢复`"
             ok-text="确认删除"
             cancel-text="取消"
@@ -307,13 +332,19 @@ async function handleDelete(record: AdminUserRow) {
         </a-form-item>
 
         <a-form-item
-          :label="isEditingSelf ? '角色（不能修改自己的角色）' : '角色'"
+          :label="
+            isEditingMain
+              ? '角色（主账号的角色不可修改）'
+              : isEditingSelf
+              ? '角色（不能修改自己的角色）'
+              : '角色'
+          "
           name="roleId"
         >
           <a-select
             v-model:value="formData.roleId"
             :options="roleOptions"
-            :disabled="isEditingSelf"
+            :disabled="roleSelectDisabled"
             placeholder="请选择角色"
           />
         </a-form-item>

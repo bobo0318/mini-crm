@@ -16,9 +16,21 @@ import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core'
 export const roles = sqliteTable('roles', {
   id: integer('id').primaryKey({ autoIncrement: true }),
 
-  // 角色 code：'admin' | 'sales' | 'viewer'，唯一
-  // TS 类型用字面量约束，业务里 role.name 直接是窄类型
-  name: text('name').$type<'admin' | 'sales' | 'viewer'>().notNull().unique(),
+  // 角色 code，唯一
+  // ⚠️ D9 这里原来用字面量类型 'admin' | 'sales' | 'viewer' 约束，
+  //    自定义角色加进来后只能放宽成 string（自定义的 name 是用户输入的，编译期不知道）
+  //    业务里要 narrow（比如内置那 3 个的特殊处理）就显式 `as 'admin'` 或 typeof 判断
+  name: text('name').notNull().unique(),
+
+  // ⭐ 角色类型（自定义角色支持引入）
+  //   'system' = 内置角色（admin / sales / viewer）—— 永远不可改不可删
+  //   'custom' = 用户在前端通过"新增角色"创建的角色
+  // 控制：哪些角色能被编辑、哪些权限能被勾，分流的依据
+  //
+  // default('system') 的原因：SQLite ALTER TABLE 加 NOT NULL 列必须有常量 default；
+  //   且现有 3 个内置角色刚好该是 'system'，default 跟语义一致
+  //   前端创建自定义角色时 zod schema 强制传 type='custom'，不会落 default
+  type: text('type').$type<'system' | 'custom'>().notNull().default('system'),
 
   // 中文描述：'管理员' / '销售' / '只读'，给前端展示用
   description: text('description').notNull(),
@@ -54,6 +66,19 @@ export const users = sqliteTable('users', {
   //   - 业务上靠 register 接口和 seed 脚本保证：所有 user 必有 role_id
   // 注意 references(() => roles.id) 是延迟引用，roles 定义在文件下方也能正常解析
   roleId: integer('role_id').references(() => roles.id),
+
+  // ⭐ 账号类型（参考 start 项目的 AdminType，简化成 2 种）
+  //   'main' = 主账号（系统创建时种 1 个，全 DB 永远只有 1 条）
+  //   'sub'  = 副手账号（注册接口创建的、admin 手动新增的，都是 sub）
+  //
+  // 关键约束（由 routes/user.ts 和 routes/auth.ts 守门）：
+  //   1. main 在 DB 里唯一，POST /users 永远只造 sub，POST /auth/register 永远只造 sub
+  //   2. main 不可删（DELETE /users/:id 拦 main）
+  //   3. main 不可被改 roleId（即使是 main 自己改自己也不行 —— 防自己降级回不来）
+  //   4. main 不可被改 adminType（同理）
+  //
+  // 默认 'sub' —— 让 DEFAULT 是个常量，SQLite ALTER TABLE 加列才允许
+  adminType: text('admin_type').$type<'main' | 'sub'>().notNull().default('sub'),
 
   // 创建时间：用 integer 存 Unix 时间戳，mode: 'timestamp' 告诉 Drizzle 这是 Date 类型
   // $defaultFn = 插入时如果没传，运行时自动用这个函数生成默认值
