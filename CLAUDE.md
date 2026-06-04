@@ -2,6 +2,8 @@
 
 > 这份文件每次新对话都会自动加载。
 > **新对话第一件事：读完这份文件 + 读 [PROJECT_PLAN.md](PROJECT_PLAN.md)，再开始任何动作。**
+>
+> **改代码 / 上线前必看**：[WORKFLOW.md](WORKFLOW.md) —— 本地 dev、生产部署、Turso schema 同步的完整流程 + 踩坑表。
 
 ---
 
